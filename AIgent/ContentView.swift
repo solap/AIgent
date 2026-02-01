@@ -85,6 +85,15 @@ struct ContentView: View {
                         } label: {
                             Label("Settings", systemImage: "gear")
                         }
+
+                        Divider()
+
+                        Button {
+                            copyAllMessages()
+                        } label: {
+                            Label("Copy All Messages", systemImage: "doc.on.doc")
+                        }
+                        .disabled(chatSession.messages.isEmpty)
                     } label: {
                         Image(systemName: "line.3.horizontal")
                     }
@@ -279,6 +288,16 @@ struct ContentView: View {
 
         storage.updateConversation(conversation)
         currentConversation = conversation
+    }
+
+    private func copyAllMessages() {
+        let allText = chatSession.messages.map { message in
+            let role = message.isUser ? "You" : (message.provider?.rawValue ?? "Assistant")
+            let modelInfo = message.model.map { " (\($0))" } ?? ""
+            return "\(role)\(modelInfo):\n\(message.content)\n"
+        }.joined(separator: "\n")
+
+        UIPasteboard.general.string = allText
     }
 }
 
