@@ -118,13 +118,24 @@ class APIService {
         // Convert model name to API model ID
         let modelId = getAnthropicModelId(model)
 
-        // Build conversation history (skip multi-model placeholder messages)
+        // Build conversation history (extract relevant provider response from multi-model messages)
         var messages: [[String: Any]] = []
-        for msg in history where !msg.isMultiModel {
-            messages.append([
-                "role": msg.isUser ? "user" : "assistant",
-                "content": msg.content
-            ])
+        for msg in history {
+            if msg.isMultiModel {
+                // For multi-model messages, extract this provider's response
+                if let responses = msg.multiResponses,
+                   let providerResponse = responses.first(where: { $0.provider == .anthropic }) {
+                    messages.append([
+                        "role": "assistant",
+                        "content": providerResponse.content
+                    ])
+                }
+            } else {
+                messages.append([
+                    "role": msg.isUser ? "user" : "assistant",
+                    "content": msg.content
+                ])
+            }
         }
 
         // Add current message with optional image
@@ -211,11 +222,22 @@ class APIService {
             ])
         }
 
-        for msg in history where !msg.isMultiModel {
-            messages.append([
-                "role": msg.isUser ? "user" : "assistant",
-                "content": msg.content
-            ])
+        for msg in history {
+            if msg.isMultiModel {
+                // For multi-model messages, extract this provider's response
+                if let responses = msg.multiResponses,
+                   let providerResponse = responses.first(where: { $0.provider == .openAI }) {
+                    messages.append([
+                        "role": "assistant",
+                        "content": providerResponse.content
+                    ])
+                }
+            } else {
+                messages.append([
+                    "role": msg.isUser ? "user" : "assistant",
+                    "content": msg.content
+                ])
+            }
         }
 
         // Add current message with optional image
@@ -287,11 +309,22 @@ class APIService {
         // Build conversation history
         var contents: [[String: Any]] = []
 
-        for msg in history where !msg.isMultiModel {
-            contents.append([
-                "role": msg.isUser ? "user" : "model",
-                "parts": [["text": msg.content]]
-            ])
+        for msg in history {
+            if msg.isMultiModel {
+                // For multi-model messages, extract this provider's response
+                if let responses = msg.multiResponses,
+                   let providerResponse = responses.first(where: { $0.provider == .google }) {
+                    contents.append([
+                        "role": "model",
+                        "parts": [["text": providerResponse.content]]
+                    ])
+                }
+            } else {
+                contents.append([
+                    "role": msg.isUser ? "user" : "model",
+                    "parts": [["text": msg.content]]
+                ])
+            }
         }
 
         // Add current message with optional image
@@ -376,11 +409,22 @@ class APIService {
             ])
         }
 
-        for msg in history where !msg.isMultiModel {
-            messages.append([
-                "role": msg.isUser ? "user" : "assistant",
-                "content": msg.content
-            ])
+        for msg in history {
+            if msg.isMultiModel {
+                // For multi-model messages, extract this provider's response
+                if let responses = msg.multiResponses,
+                   let providerResponse = responses.first(where: { $0.provider == .grok }) {
+                    messages.append([
+                        "role": "assistant",
+                        "content": providerResponse.content
+                    ])
+                }
+            } else {
+                messages.append([
+                    "role": msg.isUser ? "user" : "assistant",
+                    "content": msg.content
+                ])
+            }
         }
 
         // Add current message
