@@ -342,14 +342,14 @@ class APIService {
 
     private func getAnthropicModelId(_ modelName: String) -> String {
         switch modelName {
-        case "Claude 3.5 Sonnet":
-            return "claude-3-5-sonnet-20250122"
-        case "Claude 3 Opus":
-            return "claude-3-opus-20240229"
-        case "Claude 3 Haiku":
-            return "claude-3-haiku-20240307"
+        case "Claude Sonnet 4.5":
+            return "claude-sonnet-4-5-20250929"
+        case "Claude Opus 4.5":
+            return "claude-opus-4-5-20251101"
+        case "Claude Haiku 4.5":
+            return "claude-haiku-4-5-20251001"
         default:
-            return "claude-3-5-sonnet-20250122"
+            return "claude-sonnet-4-5-20250929"
         }
     }
 

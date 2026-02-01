@@ -29,7 +29,7 @@ enum LLMProvider: String, CaseIterable, Identifiable, Codable {
     var models: [String] {
         switch self {
         case .anthropic:
-            return ["Claude 3.5 Sonnet", "Claude 3 Opus", "Claude 3 Haiku"]
+            return ["Claude Sonnet 4.5", "Claude Opus 4.5", "Claude Haiku 4.5"]
         case .openAI:
             return ["GPT-4o", "GPT-4 Turbo", "GPT-4", "GPT-3.5 Turbo"]
         case .google:
