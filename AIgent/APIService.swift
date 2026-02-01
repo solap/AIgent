@@ -120,21 +120,11 @@ class APIService {
 
         // Build conversation history
         var messages: [[String: Any]] = []
-        for msg in history where msg.isUser {
+        for msg in history {
             messages.append([
-                "role": "user",
+                "role": msg.isUser ? "user" : "assistant",
                 "content": msg.content
             ])
-
-            // Find corresponding assistant response
-            if let index = history.firstIndex(where: { $0.id == msg.id }),
-               index + 1 < history.count,
-               !history[index + 1].isUser {
-                messages.append([
-                    "role": "assistant",
-                    "content": history[index + 1].content
-                ])
-            }
         }
 
         // Add current message with optional image
