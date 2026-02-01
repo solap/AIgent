@@ -244,7 +244,9 @@ EOF
             echo "Pushing build status to repo..."
             git add "$BUILD_STATUS_FILE"
             git commit -m "Build status: $([ $DEPLOY_EXIT_CODE -eq 0 ] && echo 'SUCCESS' || echo 'FAILED') - $VERSION ($BUILD)"
-            git push origin "$CURRENT_BRANCH" 2>/dev/null || git push origin master 2>/dev/null || git push origin main 2>/dev/null
+            # Push to the actual current branch (may be master after merge)
+            ACTUAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+            git push origin "$ACTUAL_BRANCH" || echo "Warning: Failed to push build status"
             echo "Build status pushed to repo"
         else
             LAST_DEPLOY="PULL FAILED $(date '+%H:%M:%S')"
