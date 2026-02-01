@@ -23,11 +23,9 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Model Selector (hidden when typing)
-                if !isInputFocused {
-                    modelSelector
-                    Divider()
-                }
+                // Model Selector (always visible)
+                modelSelector
+                Divider()
 
                 // Messages List
                 ScrollViewReader { proxy in
@@ -204,21 +202,11 @@ struct ContentView: View {
     // MARK: - Input Area
 
     private var inputArea: some View {
-        HStack(alignment: .bottom, spacing: 8) {
+        HStack(alignment: .bottom, spacing: 12) {
             TextField("Message", text: $inputText, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1...10)
                 .focused($isInputFocused)
-
-            // Ask All button - always visible
-            Button {
-                sendToAllModels()
-            } label: {
-                Image(systemName: "sparkles.rectangle.stack")
-                    .font(.system(size: 24))
-                    .foregroundStyle(inputText.isEmpty ? .gray : .purple)
-            }
-            .disabled(inputText.isEmpty || chatSession.isLoading)
 
             // Send button
             Button {
@@ -232,7 +220,6 @@ struct ContentView: View {
         }
         .padding()
         .background(Color(uiColor: .systemBackground))
-        .animation(.easeInOut(duration: 0.2), value: isInputFocused)
     }
 
     // MARK: - Actions
@@ -242,7 +229,6 @@ struct ContentView: View {
 
         let messageText = inputText
         inputText = ""
-        isInputFocused = false  // Unfocus to show model selector
 
         chatSession.sendMessage(messageText, provider: selectedProvider, model: selectedModel)
 
@@ -255,7 +241,6 @@ struct ContentView: View {
 
         let messageText = inputText
         inputText = ""
-        isInputFocused = false  // Unfocus to show model selector
 
         chatSession.sendMessageToAllModels(messageText)
 
