@@ -31,7 +31,7 @@ platform :ios do
       build_number: build_number
     )
 
-    # Increment minor version each deploy
+    # Increment minor version each deploy by directly editing project file
     current_version = get_version_number(
       xcodeproj: "AIgent.xcodeproj",
       target: "AIgent"
@@ -40,14 +40,15 @@ platform :ios do
     minor_version = version_parts[1].to_i + 1
     new_version = "#{version_parts[0]}.#{minor_version}"
 
-    increment_version_number(
-      version_number: new_version,
-      xcodeproj: "AIgent.xcodeproj"
-    )
+    # Directly modify the project.pbxproj file
+    project_file = "../AIgent.xcodeproj/project.pbxproj"
+    content = File.read(project_file)
+    updated_content = content.gsub(/MARKETING_VERSION = #{Regexp.escape(current_version)};/, "MARKETING_VERSION = #{new_version};")
+    File.write(project_file, updated_content)
 
     # Commit version bump so it persists
-    sh("git add ../AIgent.xcodeproj/project.pbxproj")
-    sh("git commit -m 'Bump version to #{new_version}' --allow-empty || true")
+    sh("git add #{project_file}")
+    sh("git commit -m 'Bump version to #{new_version}' || true")
     sh("git push origin HEAD || true")
 
     # Build with the downloaded profiles
