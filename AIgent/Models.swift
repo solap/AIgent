@@ -64,12 +64,28 @@ struct Message: Identifiable {
     let provider: LLMProvider?
     let model: String?
 
+    // Multi-model support
+    let isMultiModel: Bool
+    let multiResponses: [ProviderResponse]?
+
     init(content: String, isUser: Bool, provider: LLMProvider? = nil, model: String? = nil) {
         self.content = content
         self.isUser = isUser
         self.timestamp = Date()
         self.provider = provider
         self.model = model
+        self.isMultiModel = false
+        self.multiResponses = nil
+    }
+
+    init(content: String, isUser: Bool, isMultiModel: Bool, multiResponses: [ProviderResponse]?) {
+        self.content = content
+        self.isUser = isUser
+        self.timestamp = Date()
+        self.provider = nil
+        self.model = nil
+        self.isMultiModel = isMultiModel
+        self.multiResponses = multiResponses
     }
 }
 
@@ -130,5 +146,36 @@ class ChatSession: ObservableObject {
     func clearHistory() {
         messages.removeAll()
         errorMessage = nil
+    }
+
+    func sendMessageToAllModels(_ content: String) {
+        // Add user message
+        let userMessage = Message(content: content, isUser: true)
+        messages.append(userMessage)
+
+        // Clear any previous errors
+        errorMessage = nil
+        isLoading = true
+
+        Task { @MainActor in
+            // Get conversation history (excluding the message we just added)
+            let history = Array(messages.dropLast())
+
+            // Call the API for all providers
+            let responses = await APIService.shared.sendMessageToAll(
+                content,
+                conversationHistory: history
+            )
+
+            // Add multi-model response message
+            let multiMessage = Message(
+                content: "\(responses.count) models responded",
+                isUser: false,
+                isMultiModel: true,
+                multiResponses: responses
+            )
+            messages.append(multiMessage)
+            isLoading = false
+        }
     }
 }

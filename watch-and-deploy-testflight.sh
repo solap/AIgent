@@ -8,7 +8,14 @@ CHECK_INTERVAL=15  # seconds
 
 cd "$PROJECT_DIR"
 
-LAST_DEPLOY="Never"
+# Load last deploy time from file if it exists
+LAST_DEPLOY_FILE="$PROJECT_DIR/.last_deploy"
+if [ -f "$LAST_DEPLOY_FILE" ]; then
+    LAST_DEPLOY=$(cat "$LAST_DEPLOY_FILE")
+else
+    LAST_DEPLOY="Never"
+fi
+
 LAST_COMMIT=""
 CHECK_COUNT=0
 CURRENT_BRANCH=""
@@ -108,6 +115,7 @@ while true; do
                 else
                     echo "❌ Merge failed - skipping deploy"
                     LAST_DEPLOY="MERGE FAILED $(date '+%H:%M:%S')"
+                    echo "$LAST_DEPLOY" > "$LAST_DEPLOY_FILE"
                     continue
                 fi
             fi
@@ -158,10 +166,12 @@ while true; do
                 VERSION=$(grep -A1 'MARKETING_VERSION' "$PROJECT_DIR/AIgent.xcodeproj/project.pbxproj" | grep -o '[0-9.]*' | head -1)
                 BUILD=$(grep -A1 'CURRENT_PROJECT_VERSION' "$PROJECT_DIR/AIgent.xcodeproj/project.pbxproj" | grep -o '[0-9]*' | head -1)
 
-                LAST_DEPLOY=$(date '+%H:%M:%S')
+                LAST_DEPLOY=$(date '+%Y-%m-%d %H:%M:%S')
+                echo "$LAST_DEPLOY" > "$LAST_DEPLOY_FILE"
+
                 echo ""
                 echo "========================================"
-                echo "$(date '+%Y-%m-%d %H:%M:%S') ✅ DEPLOY SUCCESSFUL!"
+                echo "$LAST_DEPLOY ✅ DEPLOY SUCCESSFUL!"
                 echo "   Version: $VERSION ($BUILD)"
                 echo "   Commit: $LAST_COMMIT"
                 echo "   Processing on Apple servers (5-10 min)"
@@ -171,6 +181,7 @@ while true; do
                 osascript -e "display notification \"Version $VERSION ($BUILD) uploaded successfully\" with title \"AIgent TestFlight Success\" sound name \"Glass\""
             else
                 LAST_DEPLOY="❌ FAILED $(date '+%H:%M:%S')"
+                echo "$LAST_DEPLOY" > "$LAST_DEPLOY_FILE"
                 echo ""
                 echo "========================================"
                 echo "$(date '+%Y-%m-%d %H:%M:%S') ❌ DEPLOY FAILED!"
@@ -186,6 +197,7 @@ while true; do
             fi
         else
             LAST_DEPLOY="PULL FAILED $(date '+%H:%M:%S')"
+            echo "$LAST_DEPLOY" > "$LAST_DEPLOY_FILE"
             echo "$(date '+%Y-%m-%d %H:%M:%S') Git pull failed!"
         fi
         echo ""

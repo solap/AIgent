@@ -88,4 +88,33 @@ class SettingsManager: ObservableObject {
     func hasAPIKey(for provider: LLMProvider) -> Bool {
         return getAPIKey(for: provider) != nil
     }
+
+    // MARK: - System Prompt Management
+
+    private let systemPromptsKey = "systemPrompts"
+
+    func setSystemPrompt(_ prompt: String, for provider: LLMProvider) {
+        var prompts = getSystemPrompts()
+        prompts[provider.rawValue] = prompt.isEmpty ? nil : prompt
+        saveSystemPrompts(prompts)
+    }
+
+    func getSystemPrompt(for provider: LLMProvider) -> String? {
+        let prompts = getSystemPrompts()
+        return prompts[provider.rawValue]
+    }
+
+    private func getSystemPrompts() -> [String: String] {
+        guard let data = UserDefaults.standard.data(forKey: systemPromptsKey),
+              let prompts = try? JSONDecoder().decode([String: String].self, from: data) else {
+            return [:]
+        }
+        return prompts
+    }
+
+    private func saveSystemPrompts(_ prompts: [String: String]) {
+        if let data = try? JSONEncoder().encode(prompts) {
+            UserDefaults.standard.set(data, forKey: systemPromptsKey)
+        }
+    }
 }

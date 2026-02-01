@@ -19,21 +19,64 @@ class APIService {
             throw APIError.missingAPIKey
         }
 
+        let systemPrompt = SettingsManager.shared.getSystemPrompt(for: provider)
+
         switch provider {
         case .anthropic:
-            return try await sendAnthropicMessage(message, model: model, apiKey: apiKey, history: conversationHistory)
+            return try await sendAnthropicMessage(message, model: model, apiKey: apiKey, history: conversationHistory, systemPrompt: systemPrompt)
         case .openAI:
-            return try await sendOpenAIMessage(message, model: model, apiKey: apiKey, history: conversationHistory)
+            return try await sendOpenAIMessage(message, model: model, apiKey: apiKey, history: conversationHistory, systemPrompt: systemPrompt)
         case .google:
-            return try await sendGoogleMessage(message, model: model, apiKey: apiKey, history: conversationHistory)
+            return try await sendGoogleMessage(message, model: model, apiKey: apiKey, history: conversationHistory, systemPrompt: systemPrompt)
         case .grok:
-            return try await sendGrokMessage(message, model: model, apiKey: apiKey, history: conversationHistory)
+            return try await sendGrokMessage(message, model: model, apiKey: apiKey, history: conversationHistory, systemPrompt: systemPrompt)
         }
+    }
+
+    // MARK: - Multi-Model API Call
+
+    func sendMessageToAll(_ message: String, conversationHistory: [Message]) async -> [ProviderResponse] {
+        var responses: [ProviderResponse] = []
+
+        // Send to all providers concurrently
+        await withTaskGroup(of: ProviderResponse?.self) { group in
+            for provider in LLMProvider.allCases {
+                // Only send if API key is configured
+                guard SettingsManager.shared.hasAPIKey(for: provider) else { continue }
+
+                let model = provider.models.first ?? ""
+
+                group.addTask {
+                    do {
+                        let response = try await self.sendMessage(
+                            message,
+                            provider: provider,
+                            model: model,
+                            conversationHistory: conversationHistory
+                        )
+                        return ProviderResponse(provider: provider, model: model, content: response)
+                    } catch {
+                        // Return error as response content
+                        let errorMessage = "Error: \(error.localizedDescription)"
+                        return ProviderResponse(provider: provider, model: model, content: errorMessage)
+                    }
+                }
+            }
+
+            for await response in group {
+                if let response = response {
+                    responses.append(response)
+                }
+            }
+        }
+
+        // Sort by provider order
+        return responses.sorted { $0.provider.rawValue < $1.provider.rawValue }
     }
 
     // MARK: - Anthropic API
 
-    private func sendAnthropicMessage(_ message: String, model: String, apiKey: String, history: [Message]) async throws -> String {
+    private func sendAnthropicMessage(_ message: String, model: String, apiKey: String, history: [Message], systemPrompt: String?) async throws -> String {
         let url = URL(string: "https://api.anthropic.com/v1/messages")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -69,11 +112,16 @@ class APIService {
             "content": message
         ])
 
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "model": modelId,
             "max_tokens": 4096,
             "messages": messages
         ]
+
+        // Add system prompt if provided (Anthropic uses "system" parameter)
+        if let systemPrompt = systemPrompt, !systemPrompt.isEmpty {
+            body["system"] = systemPrompt
+        }
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
@@ -99,7 +147,7 @@ class APIService {
 
     // MARK: - OpenAI API
 
-    private func sendOpenAIMessage(_ message: String, model: String, apiKey: String, history: [Message]) async throws -> String {
+    private func sendOpenAIMessage(_ message: String, model: String, apiKey: String, history: [Message], systemPrompt: String?) async throws -> String {
         let url = URL(string: "https://api.openai.com/v1/chat/completions")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -111,6 +159,14 @@ class APIService {
 
         // Build conversation history
         var messages: [[String: Any]] = []
+
+        // Add system prompt as first message if provided (OpenAI uses role "system")
+        if let systemPrompt = systemPrompt, !systemPrompt.isEmpty {
+            messages.append([
+                "role": "system",
+                "content": systemPrompt
+            ])
+        }
 
         for msg in history {
             messages.append([
@@ -156,7 +212,7 @@ class APIService {
 
     // MARK: - Google Gemini API
 
-    private func sendGoogleMessage(_ message: String, model: String, apiKey: String, history: [Message]) async throws -> String {
+    private func sendGoogleMessage(_ message: String, model: String, apiKey: String, history: [Message], systemPrompt: String?) async throws -> String {
         // Convert model name to API model ID
         let modelId = getGoogleModelId(model)
 
@@ -181,9 +237,16 @@ class APIService {
             "parts": [["text": message]]
         ])
 
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "contents": contents
         ]
+
+        // Add system prompt if provided (Google uses systemInstruction)
+        if let systemPrompt = systemPrompt, !systemPrompt.isEmpty {
+            body["systemInstruction"] = [
+                "parts": [["text": systemPrompt]]
+            ]
+        }
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
@@ -212,7 +275,7 @@ class APIService {
 
     // MARK: - Grok API (xAI)
 
-    private func sendGrokMessage(_ message: String, model: String, apiKey: String, history: [Message]) async throws -> String {
+    private func sendGrokMessage(_ message: String, model: String, apiKey: String, history: [Message], systemPrompt: String?) async throws -> String {
         let url = URL(string: "https://api.x.ai/v1/chat/completions")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -224,6 +287,14 @@ class APIService {
 
         // Build conversation history
         var messages: [[String: Any]] = []
+
+        // Add system prompt as first message if provided (Grok uses role "system")
+        if let systemPrompt = systemPrompt, !systemPrompt.isEmpty {
+            messages.append([
+                "role": "system",
+                "content": systemPrompt
+            ])
+        }
 
         for msg in history {
             messages.append([

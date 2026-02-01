@@ -9,6 +9,7 @@ fastlane/README.md
 
 # Deployment logs
 deploy.log
+.last_deploy
 
 # Xcode
 *.xcodeproj/*

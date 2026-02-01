@@ -9,10 +9,15 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var chatSession = ChatSession()
+    @StateObject private var storage = ConversationStorage.shared
+
     @State private var inputText = ""
     @State private var selectedProvider: LLMProvider = .anthropic
     @State private var selectedModel = "Claude 3.5 Sonnet"
     @State private var showingSettings = false
+    @State private var showingConversationList = false
+    @State private var currentConversation: Conversation?
+    @State private var selectedMultiResponse: [ProviderResponse]?
 
     var body: some View {
         NavigationStack {
@@ -27,8 +32,21 @@ struct ContentView: View {
                     ScrollView {
                         LazyVStack(spacing: 12) {
                             ForEach(chatSession.messages) { message in
-                                MessageBubble(message: message)
+                                if message.isMultiModel, let responses = message.multiResponses {
+                                    // Multi-model response bubble
+                                    MultiModelMessageBubble(
+                                        message: message,
+                                        responses: responses
+                                    )
+                                    .onTapGesture {
+                                        selectedMultiResponse = responses
+                                    }
                                     .id(message.id)
+                                } else {
+                                    // Regular message bubble
+                                    MessageBubble(message: message)
+                                        .id(message.id)
+                                }
                             }
 
                             if chatSession.isLoading {
@@ -51,27 +69,51 @@ struct ContentView: View {
                 // Input Area
                 inputArea
             }
-            .navigationTitle("AIgent")
+            .navigationTitle(currentConversation?.title ?? "New Chat")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        showingSettings = true
+                    Menu {
+                        Button {
+                            showingConversationList = true
+                        } label: {
+                            Label("All Conversations", systemImage: "list.bullet")
+                        }
+
+                        Button {
+                            showingSettings = true
+                        } label: {
+                            Label("Settings", systemImage: "gear")
+                        }
                     } label: {
-                        Image(systemName: "gear")
+                        Image(systemName: "line.3.horizontal")
                     }
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
-                        chatSession.clearHistory()
+                        startNewChat()
                     } label: {
-                        Image(systemName: "trash")
+                        Image(systemName: "square.and.pencil")
                     }
                 }
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
+            }
+            .sheet(isPresented: $showingConversationList) {
+                ConversationListView(
+                    storage: storage,
+                    selectedConversation: $currentConversation
+                )
+            }
+            .sheet(item: $selectedMultiResponse) { responses in
+                MultiModelResponseView(responses: responses)
+            }
+            .onAppear {
+                if currentConversation == nil {
+                    loadOrCreateConversation()
+                }
             }
         }
     }
@@ -93,19 +135,43 @@ struct ContentView: View {
             .pickerStyle(.segmented)
             .padding(.horizontal)
 
-            // Model Picker
-            Picker("Model", selection: $selectedModel) {
-                ForEach(selectedProvider.models, id: \.self) { model in
-                    Text(model).tag(model)
+            HStack {
+                // Model Picker
+                Picker("Model", selection: $selectedModel) {
+                    ForEach(selectedProvider.models, id: \.self) { model in
+                        Text(model).tag(model)
+                    }
                 }
+                .pickerStyle(.menu)
+
+                Spacer()
+
+                // Ask All button
+                Button {
+                    sendToAllModels()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles.rectangle.stack")
+                        Text("Ask All")
+                    }
+                    .font(.caption)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.blue.opacity(0.1))
+                    .foregroundColor(.blue)
+                    .cornerRadius(8)
+                }
+                .disabled(inputText.isEmpty || chatSession.isLoading)
             }
-            .pickerStyle(.menu)
             .padding(.horizontal)
         }
         .padding(.vertical, 8)
         .background(Color(uiColor: .systemGroupedBackground))
         .onChange(of: selectedProvider) { _, newProvider in
             selectedModel = newProvider.models.first ?? ""
+        }
+        .onChange(of: currentConversation) { _, _ in
+            loadConversationMessages()
         }
     }
 
@@ -130,11 +196,89 @@ struct ContentView: View {
         .background(Color(uiColor: .systemBackground))
     }
 
+    // MARK: - Actions
+
     private func sendMessage() {
         guard !inputText.isEmpty else { return }
 
-        chatSession.sendMessage(inputText, provider: selectedProvider, model: selectedModel)
+        let messageText = inputText
         inputText = ""
+
+        chatSession.sendMessage(messageText, provider: selectedProvider, model: selectedModel)
+
+        // Save to conversation
+        saveCurrentConversation()
+    }
+
+    private func sendToAllModels() {
+        guard !inputText.isEmpty else { return }
+
+        let messageText = inputText
+        inputText = ""
+
+        chatSession.sendMessageToAllModels(messageText)
+
+        // Save to conversation
+        saveCurrentConversation()
+    }
+
+    private func startNewChat() {
+        // Save current conversation if it has messages
+        if let current = currentConversation, !current.messages.isEmpty {
+            saveCurrentConversation()
+        }
+
+        // Create new conversation
+        let newConversation = storage.createConversation()
+        currentConversation = newConversation
+        chatSession.clearHistory()
+    }
+
+    private func loadOrCreateConversation() {
+        if storage.conversations.isEmpty {
+            currentConversation = storage.createConversation()
+        } else {
+            currentConversation = storage.conversations.first
+            loadConversationMessages()
+        }
+    }
+
+    private func loadConversationMessages() {
+        guard let conversation = currentConversation else { return }
+
+        // Convert ConversationMessages back to old Message format for display
+        chatSession.messages = conversation.messages.map { msg in
+            if msg.isUser {
+                return Message(content: msg.content, isUser: true)
+            } else if let responses = msg.multiResponses {
+                // For multi-model, create a placeholder message
+                return Message(content: msg.content, isUser: false, isMultiModel: true, multiResponses: responses)
+            } else if let provider = msg.provider, let model = msg.model {
+                return Message(content: msg.content, isUser: false, provider: provider, model: model)
+            } else {
+                return Message(content: msg.content, isUser: false)
+            }
+        }
+    }
+
+    private func saveCurrentConversation() {
+        guard var conversation = currentConversation else { return }
+
+        // Convert current chat messages to ConversationMessage format
+        conversation.messages = chatSession.messages.map { msg in
+            if msg.isUser {
+                return ConversationMessage(content: msg.content, isUser: true)
+            } else if let responses = msg.multiResponses {
+                return ConversationMessage(userMessage: msg.content, responses: responses)
+            } else if let provider = msg.provider, let model = msg.model {
+                return ConversationMessage(content: msg.content, provider: provider, model: model)
+            } else {
+                return ConversationMessage(content: msg.content, isUser: false)
+            }
+        }
+
+        storage.updateConversation(conversation)
+        currentConversation = conversation
     }
 }
 
@@ -149,6 +293,7 @@ struct MessageBubble: View {
 
             VStack(alignment: message.isUser ? .trailing : .leading, spacing: 4) {
                 Text(message.content)
+                    .textSelection(.enabled)
                     .padding(12)
                     .background(message.isUser ? Color.blue : Color(uiColor: .systemGray5))
                     .foregroundColor(message.isUser ? .white : .primary)
@@ -169,6 +314,45 @@ struct MessageBubble: View {
     }
 }
 
+// MARK: - Multi-Model Message Bubble
+
+struct MultiModelMessageBubble: View {
+    let message: Message
+    let responses: [ProviderResponse]
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "sparkles.rectangle.stack")
+                    Text("\(responses.count) model responses")
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary)
+                }
+                .padding(12)
+                .background(Color.purple.opacity(0.1))
+                .foregroundColor(.purple)
+                .cornerRadius(16)
+
+                // Show provider icons
+                HStack(spacing: 4) {
+                    ForEach(responses) { response in
+                        Image(systemName: response.provider.iconName)
+                            .font(.caption)
+                    }
+                    Text("Tap to view all")
+                        .font(.caption2)
+                }
+                .foregroundColor(.secondary)
+            }
+
+            Spacer()
+        }
+    }
+}
+
 // MARK: - Loading Indicator
 
 struct LoadingIndicator: View {
@@ -181,6 +365,13 @@ struct LoadingIndicator: View {
 
             Spacer()
         }
+    }
+}
+
+// Extension to make [ProviderResponse] Identifiable for sheet presentation
+extension Array: Identifiable where Element == ProviderResponse {
+    public var id: String {
+        map { $0.id.uuidString }.joined()
     }
 }
 

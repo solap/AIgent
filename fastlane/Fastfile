@@ -31,19 +31,24 @@ platform :ios do
       build_number: build_number
     )
 
-    # Increment minor version and set version as Major.Minor.Build (e.g., 1.5.20260120223223)
+    # Increment minor version each deploy
     current_version = get_version_number(
       xcodeproj: "AIgent.xcodeproj",
       target: "AIgent"
     )
     version_parts = current_version.split('.')
     minor_version = version_parts[1].to_i + 1
-    new_version = "#{version_parts[0]}.#{minor_version}.#{build_number}"
+    new_version = "#{version_parts[0]}.#{minor_version}"
 
     increment_version_number(
       version_number: new_version,
       xcodeproj: "AIgent.xcodeproj"
     )
+
+    # Commit version bump so it persists
+    sh("git add ../AIgent.xcodeproj/project.pbxproj")
+    sh("git commit -m 'Bump version to #{new_version}' --allow-empty || true")
+    sh("git push origin HEAD || true")
 
     # Build with the downloaded profiles
     build_app(
