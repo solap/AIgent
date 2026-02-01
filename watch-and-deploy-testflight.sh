@@ -71,6 +71,14 @@ while true; do
     REMOTE=$(git rev-parse "origin/$CURRENT_BRANCH" 2>/dev/null)
 
     if [ "$LOCAL" != "$REMOTE" ]; then
+        # Check if the only changes are to build-status.json (avoid infinite loop)
+        CHANGED_FILES=$(git diff --name-only HEAD..origin/$CURRENT_BRANCH 2>/dev/null)
+        if [ "$CHANGED_FILES" = "build-status.json" ]; then
+            # Only build-status.json changed - just pull and skip build
+            git pull --rebase origin "$CURRENT_BRANCH" --quiet 2>/dev/null
+            continue
+        fi
+
         printf "\n"  # Only newline when we have changes
         echo ""
         echo "========================================"
