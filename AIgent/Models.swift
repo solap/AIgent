@@ -43,7 +43,7 @@ enum LLMProvider: String, CaseIterable, Identifiable {
         // Returns the actual API model identifier
         switch self {
         case .anthropic:
-            return models.first ?? "claude-3-5-sonnet-20241022"
+            return models.first ?? "claude-3-5-sonnet-20250122"
         case .openAI:
             return models.first ?? "gpt-4o"
         case .google:
