@@ -12,6 +12,33 @@ class APIService {
 
     private init() {}
 
+    // MARK: - Image Helper
+
+    private func detectImageMimeType(_ data: Data) -> String {
+        // Check magic bytes to detect image type
+        var bytes = [UInt8](repeating: 0, count: 8)
+        data.copyBytes(to: &bytes, count: min(8, data.count))
+
+        // PNG: 89 50 4E 47
+        if bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47 {
+            return "image/png"
+        }
+        // JPEG: FF D8 FF
+        if bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF {
+            return "image/jpeg"
+        }
+        // GIF: 47 49 46 38
+        if bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x38 {
+            return "image/gif"
+        }
+        // WebP: 52 49 46 46 ... 57 45 42 50
+        if bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46 {
+            return "image/webp"
+        }
+        // Default to JPEG
+        return "image/jpeg"
+    }
+
     // MARK: - Main API Call
 
     func sendMessage(_ message: String, provider: LLMProvider, model: String, conversationHistory: [Message], imageData: Data? = nil) async throws -> String {
@@ -35,7 +62,7 @@ class APIService {
 
     // MARK: - Multi-Model API Call
 
-    func sendMessageToAll(_ message: String, conversationHistory: [Message]) async -> [ProviderResponse] {
+    func sendMessageToAll(_ message: String, conversationHistory: [Message], imageData: Data? = nil) async -> [ProviderResponse] {
         var responses: [ProviderResponse] = []
 
         // Send to all providers concurrently
@@ -43,6 +70,9 @@ class APIService {
             for provider in LLMProvider.allCases {
                 // Only send if API key is configured
                 guard SettingsManager.shared.hasAPIKey(for: provider) else { continue }
+
+                // Skip Grok for images (doesn't support vision)
+                if imageData != nil && provider == .grok { continue }
 
                 let model = provider.models.first ?? ""
 
@@ -52,7 +82,8 @@ class APIService {
                             message,
                             provider: provider,
                             model: model,
-                            conversationHistory: conversationHistory
+                            conversationHistory: conversationHistory,
+                            imageData: imageData
                         )
                         return ProviderResponse(provider: provider, model: model, content: response)
                     } catch {
@@ -109,6 +140,7 @@ class APIService {
         // Add current message with optional image
         if let imageData = imageData {
             let base64Image = imageData.base64EncodedString()
+            let mimeType = detectImageMimeType(imageData)
             messages.append([
                 "role": "user",
                 "content": [
@@ -116,7 +148,7 @@ class APIService {
                         "type": "image",
                         "source": [
                             "type": "base64",
-                            "media_type": "image/jpeg",
+                            "media_type": mimeType,
                             "data": base64Image
                         ]
                     ],
@@ -199,13 +231,14 @@ class APIService {
         // Add current message with optional image
         if let imageData = imageData {
             let base64Image = imageData.base64EncodedString()
+            let mimeType = detectImageMimeType(imageData)
             messages.append([
                 "role": "user",
                 "content": [
                     [
                         "type": "image_url",
                         "image_url": [
-                            "url": "data:image/jpeg;base64,\(base64Image)"
+                            "url": "data:\(mimeType);base64,\(base64Image)"
                         ]
                     ],
                     [
@@ -274,12 +307,13 @@ class APIService {
         // Add current message with optional image
         if let imageData = imageData {
             let base64Image = imageData.base64EncodedString()
+            let mimeType = detectImageMimeType(imageData)
             contents.append([
                 "role": "user",
                 "parts": [
                     [
                         "inlineData": [
-                            "mimeType": "image/jpeg",
+                            "mimeType": mimeType,
                             "data": base64Image
                         ]
                     ],

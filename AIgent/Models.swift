@@ -154,9 +154,9 @@ class ChatSession: ObservableObject {
         errorMessage = nil
     }
 
-    func sendMessageToAllModels(_ content: String) {
+    func sendMessageToAllModels(_ content: String, imageData: Data? = nil) {
         // Add user message
-        let userMessage = Message(content: content, isUser: true)
+        let userMessage = Message(content: content, isUser: true, imageData: imageData)
         messages.append(userMessage)
 
         // Clear any previous errors
@@ -170,7 +170,8 @@ class ChatSession: ObservableObject {
             // Call the API for all providers
             let responses = await APIService.shared.sendMessageToAll(
                 content,
-                conversationHistory: history
+                conversationHistory: history,
+                imageData: imageData
             )
 
             // Add multi-model response message
