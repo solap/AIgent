@@ -118,9 +118,9 @@ class APIService {
         // Convert model name to API model ID
         let modelId = getAnthropicModelId(model)
 
-        // Build conversation history
+        // Build conversation history (skip multi-model placeholder messages)
         var messages: [[String: Any]] = []
-        for msg in history {
+        for msg in history where !msg.isMultiModel {
             messages.append([
                 "role": msg.isUser ? "user" : "assistant",
                 "content": msg.content
@@ -211,7 +211,7 @@ class APIService {
             ])
         }
 
-        for msg in history {
+        for msg in history where !msg.isMultiModel {
             messages.append([
                 "role": msg.isUser ? "user" : "assistant",
                 "content": msg.content
@@ -287,7 +287,7 @@ class APIService {
         // Build conversation history
         var contents: [[String: Any]] = []
 
-        for msg in history {
+        for msg in history where !msg.isMultiModel {
             contents.append([
                 "role": msg.isUser ? "user" : "model",
                 "parts": [["text": msg.content]]
@@ -376,7 +376,7 @@ class APIService {
             ])
         }
 
-        for msg in history {
+        for msg in history where !msg.isMultiModel {
             messages.append([
                 "role": msg.isUser ? "user" : "assistant",
                 "content": msg.content
