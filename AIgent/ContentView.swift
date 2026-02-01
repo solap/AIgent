@@ -13,19 +13,21 @@ struct ContentView: View {
 
     @State private var inputText = ""
     @State private var selectedProvider: LLMProvider = .anthropic
-    @State private var selectedModel = "Claude 3.5 Sonnet"
+    @State private var selectedModel = "Claude Sonnet 4.5"
     @State private var showingSettings = false
     @State private var showingConversationList = false
     @State private var currentConversation: Conversation?
     @State private var selectedMultiResponse: ProviderResponseWrapper?
+    @FocusState private var isInputFocused: Bool
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Model Selector
-                modelSelector
-
-                Divider()
+                // Model Selector (hidden when typing)
+                if !isInputFocused {
+                    modelSelector
+                    Divider()
+                }
 
                 // Messages List
                 ScrollViewReader { proxy in
@@ -100,10 +102,19 @@ struct ContentView: View {
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        startNewChat()
-                    } label: {
-                        Image(systemName: "square.and.pencil")
+                    HStack(spacing: 12) {
+                        Button {
+                            copyAllMessages()
+                        } label: {
+                            Image(systemName: "doc.on.doc")
+                        }
+                        .disabled(chatSession.messages.isEmpty)
+
+                        Button {
+                            startNewChat()
+                        } label: {
+                            Image(systemName: "square.and.pencil")
+                        }
                     }
                 }
             }
@@ -130,55 +141,61 @@ struct ContentView: View {
     // MARK: - Model Selector
 
     private var modelSelector: some View {
-        VStack(spacing: 8) {
-            // Provider Picker
-            Picker("Provider", selection: $selectedProvider) {
+        HStack(spacing: 12) {
+            // Provider + Model combined picker
+            Menu {
                 ForEach(LLMProvider.allCases) { provider in
-                    HStack {
-                        Image(systemName: provider.iconName)
-                        Text(provider.rawValue)
+                    Menu {
+                        ForEach(provider.models, id: \.self) { model in
+                            Button {
+                                selectedProvider = provider
+                                selectedModel = model
+                            } label: {
+                                if selectedProvider == provider && selectedModel == model {
+                                    Label(model, systemImage: "checkmark")
+                                } else {
+                                    Text(model)
+                                }
+                            }
+                        }
+                    } label: {
+                        Label(provider.rawValue, systemImage: provider.iconName)
                     }
-                    .tag(provider)
                 }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: selectedProvider.iconName)
+                    Text(selectedModel)
+                        .lineLimit(1)
+                    Image(systemName: "chevron.down")
+                        .font(.caption)
+                }
+                .font(.subheadline)
+                .foregroundColor(.primary)
             }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
 
-            HStack {
-                // Model Picker
-                Picker("Model", selection: $selectedModel) {
-                    ForEach(selectedProvider.models, id: \.self) { model in
-                        Text(model).tag(model)
-                    }
+            Spacer()
+
+            // Ask All button
+            Button {
+                sendToAllModels()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "sparkles.rectangle.stack")
+                    Text("Ask All")
                 }
-                .pickerStyle(.menu)
-
-                Spacer()
-
-                // Ask All button
-                Button {
-                    sendToAllModels()
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "sparkles.rectangle.stack")
-                        Text("Ask All")
-                    }
-                    .font(.caption)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.blue.opacity(0.1))
-                    .foregroundColor(.blue)
-                    .cornerRadius(8)
-                }
-                .disabled(inputText.isEmpty || chatSession.isLoading)
+                .font(.caption)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.blue.opacity(0.1))
+                .foregroundColor(.blue)
+                .cornerRadius(8)
             }
-            .padding(.horizontal)
+            .disabled(inputText.isEmpty || chatSession.isLoading)
         }
-        .padding(.vertical, 8)
+        .padding(.horizontal)
+        .padding(.vertical, 10)
         .background(Color(uiColor: .systemGroupedBackground))
-        .onChange(of: selectedProvider) { _, newProvider in
-            selectedModel = newProvider.models.first ?? ""
-        }
         .onChange(of: currentConversation) { _, _ in
             loadConversationMessages()
         }
@@ -187,10 +204,11 @@ struct ContentView: View {
     // MARK: - Input Area
 
     private var inputArea: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .bottom, spacing: 12) {
             TextField("Message", text: $inputText, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
-                .lineLimit(1...5)
+                .lineLimit(1...10)
+                .focused($isInputFocused)
 
             Button {
                 sendMessage()
@@ -203,6 +221,7 @@ struct ContentView: View {
         }
         .padding()
         .background(Color(uiColor: .systemBackground))
+        .animation(.easeInOut(duration: 0.2), value: isInputFocused)
     }
 
     // MARK: - Actions
@@ -297,7 +316,9 @@ struct ContentView: View {
             return "\(role)\(modelInfo):\n\(message.content)\n"
         }.joined(separator: "\n")
 
-        UIPasteboard.general.string = allText
+        // Clear pasteboard first, then set string to avoid rich text issues
+        UIPasteboard.general.items = []
+        UIPasteboard.general.setValue(allText, forPasteboardType: "public.plain-text")
     }
 }
 
