@@ -14,7 +14,7 @@ class APIService {
 
     // MARK: - Main API Call
 
-    func sendMessage(_ message: String, provider: LLMProvider, model: String, conversationHistory: [Message]) async throws -> String {
+    func sendMessage(_ message: String, provider: LLMProvider, model: String, conversationHistory: [Message], imageData: Data? = nil) async throws -> String {
         guard let apiKey = SettingsManager.shared.getAPIKey(for: provider) else {
             throw APIError.missingAPIKey
         }
@@ -23,11 +23,11 @@ class APIService {
 
         switch provider {
         case .anthropic:
-            return try await sendAnthropicMessage(message, model: model, apiKey: apiKey, history: conversationHistory, systemPrompt: systemPrompt)
+            return try await sendAnthropicMessage(message, model: model, apiKey: apiKey, history: conversationHistory, systemPrompt: systemPrompt, imageData: imageData)
         case .openAI:
-            return try await sendOpenAIMessage(message, model: model, apiKey: apiKey, history: conversationHistory, systemPrompt: systemPrompt)
+            return try await sendOpenAIMessage(message, model: model, apiKey: apiKey, history: conversationHistory, systemPrompt: systemPrompt, imageData: imageData)
         case .google:
-            return try await sendGoogleMessage(message, model: model, apiKey: apiKey, history: conversationHistory, systemPrompt: systemPrompt)
+            return try await sendGoogleMessage(message, model: model, apiKey: apiKey, history: conversationHistory, systemPrompt: systemPrompt, imageData: imageData)
         case .grok:
             return try await sendGrokMessage(message, model: model, apiKey: apiKey, history: conversationHistory, systemPrompt: systemPrompt)
         }
@@ -76,7 +76,7 @@ class APIService {
 
     // MARK: - Anthropic API
 
-    private func sendAnthropicMessage(_ message: String, model: String, apiKey: String, history: [Message], systemPrompt: String?) async throws -> String {
+    private func sendAnthropicMessage(_ message: String, model: String, apiKey: String, history: [Message], systemPrompt: String?, imageData: Data? = nil) async throws -> String {
         let url = URL(string: "https://api.anthropic.com/v1/messages")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -106,11 +106,32 @@ class APIService {
             }
         }
 
-        // Add current message
-        messages.append([
-            "role": "user",
-            "content": message
-        ])
+        // Add current message with optional image
+        if let imageData = imageData {
+            let base64Image = imageData.base64EncodedString()
+            messages.append([
+                "role": "user",
+                "content": [
+                    [
+                        "type": "image",
+                        "source": [
+                            "type": "base64",
+                            "media_type": "image/jpeg",
+                            "data": base64Image
+                        ]
+                    ],
+                    [
+                        "type": "text",
+                        "text": message
+                    ]
+                ]
+            ])
+        } else {
+            messages.append([
+                "role": "user",
+                "content": message
+            ])
+        }
 
         var body: [String: Any] = [
             "model": modelId,
@@ -147,7 +168,7 @@ class APIService {
 
     // MARK: - OpenAI API
 
-    private func sendOpenAIMessage(_ message: String, model: String, apiKey: String, history: [Message], systemPrompt: String?) async throws -> String {
+    private func sendOpenAIMessage(_ message: String, model: String, apiKey: String, history: [Message], systemPrompt: String?, imageData: Data? = nil) async throws -> String {
         let url = URL(string: "https://api.openai.com/v1/chat/completions")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -175,11 +196,30 @@ class APIService {
             ])
         }
 
-        // Add current message
-        messages.append([
-            "role": "user",
-            "content": message
-        ])
+        // Add current message with optional image
+        if let imageData = imageData {
+            let base64Image = imageData.base64EncodedString()
+            messages.append([
+                "role": "user",
+                "content": [
+                    [
+                        "type": "image_url",
+                        "image_url": [
+                            "url": "data:image/jpeg;base64,\(base64Image)"
+                        ]
+                    ],
+                    [
+                        "type": "text",
+                        "text": message
+                    ]
+                ]
+            ])
+        } else {
+            messages.append([
+                "role": "user",
+                "content": message
+            ])
+        }
 
         let body: [String: Any] = [
             "model": modelId,
@@ -212,7 +252,7 @@ class APIService {
 
     // MARK: - Google Gemini API
 
-    private func sendGoogleMessage(_ message: String, model: String, apiKey: String, history: [Message], systemPrompt: String?) async throws -> String {
+    private func sendGoogleMessage(_ message: String, model: String, apiKey: String, history: [Message], systemPrompt: String?, imageData: Data? = nil) async throws -> String {
         // Convert model name to API model ID
         let modelId = getGoogleModelId(model)
 
@@ -231,11 +271,27 @@ class APIService {
             ])
         }
 
-        // Add current message
-        contents.append([
-            "role": "user",
-            "parts": [["text": message]]
-        ])
+        // Add current message with optional image
+        if let imageData = imageData {
+            let base64Image = imageData.base64EncodedString()
+            contents.append([
+                "role": "user",
+                "parts": [
+                    [
+                        "inlineData": [
+                            "mimeType": "image/jpeg",
+                            "data": base64Image
+                        ]
+                    ],
+                    ["text": message]
+                ]
+            ])
+        } else {
+            contents.append([
+                "role": "user",
+                "parts": [["text": message]]
+            ])
+        }
 
         var body: [String: Any] = [
             "contents": contents

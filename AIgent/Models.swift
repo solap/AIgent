@@ -64,16 +64,20 @@ struct Message: Identifiable {
     let provider: LLMProvider?
     let model: String?
 
+    // Image support
+    let imageData: Data?
+
     // Multi-model support
     let isMultiModel: Bool
     let multiResponses: [ProviderResponse]?
 
-    init(content: String, isUser: Bool, provider: LLMProvider? = nil, model: String? = nil) {
+    init(content: String, isUser: Bool, provider: LLMProvider? = nil, model: String? = nil, imageData: Data? = nil) {
         self.content = content
         self.isUser = isUser
         self.timestamp = Date()
         self.provider = provider
         self.model = model
+        self.imageData = imageData
         self.isMultiModel = false
         self.multiResponses = nil
     }
@@ -84,6 +88,7 @@ struct Message: Identifiable {
         self.timestamp = Date()
         self.provider = nil
         self.model = nil
+        self.imageData = nil
         self.isMultiModel = isMultiModel
         self.multiResponses = multiResponses
     }
@@ -96,9 +101,9 @@ class ChatSession: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
 
-    func sendMessage(_ content: String, provider: LLMProvider, model: String) {
+    func sendMessage(_ content: String, provider: LLMProvider, model: String, imageData: Data? = nil) {
         // Add user message
-        let userMessage = Message(content: content, isUser: true)
+        let userMessage = Message(content: content, isUser: true, imageData: imageData)
         messages.append(userMessage)
 
         // Clear any previous errors
@@ -115,7 +120,8 @@ class ChatSession: ObservableObject {
                     content,
                     provider: provider,
                     model: model,
-                    conversationHistory: history
+                    conversationHistory: history,
+                    imageData: imageData
                 )
 
                 // Add assistant response
