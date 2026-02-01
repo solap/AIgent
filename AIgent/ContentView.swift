@@ -231,6 +231,7 @@ struct ContentView: View {
 
         let messageText = inputText
         inputText = ""
+        isInputFocused = false  // Unfocus to show model selector
 
         chatSession.sendMessage(messageText, provider: selectedProvider, model: selectedModel)
 
@@ -243,6 +244,7 @@ struct ContentView: View {
 
         let messageText = inputText
         inputText = ""
+        isInputFocused = false  // Unfocus to show model selector
 
         chatSession.sendMessageToAllModels(messageText)
 
