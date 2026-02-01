@@ -161,11 +161,14 @@ while true; do
                 echo "========================================"
             fi
 
-            if [ $DEPLOY_EXIT_CODE -eq 0 ]; then
-                # Extract version info from Xcode project
-                VERSION=$(grep -A1 'MARKETING_VERSION' "$PROJECT_DIR/AIgent.xcodeproj/project.pbxproj" | grep -o '[0-9.]*' | head -1)
-                BUILD=$(grep -A1 'CURRENT_PROJECT_VERSION' "$PROJECT_DIR/AIgent.xcodeproj/project.pbxproj" | grep -o '[0-9]*' | head -1)
+            # Extract version info from Xcode project
+            VERSION=$(grep -A1 'MARKETING_VERSION' "$PROJECT_DIR/AIgent.xcodeproj/project.pbxproj" | grep -o '[0-9.]*' | head -1)
+            BUILD=$(grep -A1 'CURRENT_PROJECT_VERSION' "$PROJECT_DIR/AIgent.xcodeproj/project.pbxproj" | grep -o '[0-9]*' | head -1)
+            COMMIT_HASH=$(git rev-parse HEAD 2>/dev/null)
+            COMMIT_MSG=$(git log -1 --pretty=%s 2>/dev/null)
+            BUILD_STATUS_FILE="$PROJECT_DIR/build-status.json"
 
+            if [ $DEPLOY_EXIT_CODE -eq 0 ]; then
                 LAST_DEPLOY=$(date '+%Y-%m-%d %H:%M:%S')
                 echo "$LAST_DEPLOY" > "$LAST_DEPLOY_FILE"
 
@@ -176,6 +179,20 @@ while true; do
                 echo "   Commit: $LAST_COMMIT"
                 echo "   Processing on Apple servers (5-10 min)"
                 echo "========================================"
+
+                # Write build status to JSON for remote monitoring
+                cat > "$BUILD_STATUS_FILE" << EOF
+{
+  "status": "success",
+  "timestamp": "$(date -u '+%Y-%m-%dT%H:%M:%SZ')",
+  "version": "$VERSION",
+  "build": "$BUILD",
+  "branch": "$CURRENT_BRANCH",
+  "commit": "$COMMIT_HASH",
+  "commit_message": "$COMMIT_MSG",
+  "error": null
+}
+EOF
 
                 # Send macOS notification
                 osascript -e "display notification \"Version $VERSION ($BUILD) uploaded successfully\" with title \"AIgent TestFlight Success\" sound name \"Glass\""
@@ -192,9 +209,35 @@ while true; do
                 echo "Error details:"
                 tail -30 "$DEPLOY_LOG"
 
+                # Capture last 50 lines of error log for JSON
+                ERROR_LOG=$(tail -50 "$DEPLOY_LOG" | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+
+                # Write build status to JSON for remote monitoring
+                cat > "$BUILD_STATUS_FILE" << EOF
+{
+  "status": "failed",
+  "timestamp": "$(date -u '+%Y-%m-%dT%H:%M:%SZ')",
+  "version": "$VERSION",
+  "build": "$BUILD",
+  "branch": "$CURRENT_BRANCH",
+  "commit": "$COMMIT_HASH",
+  "commit_message": "$COMMIT_MSG",
+  "exit_code": $DEPLOY_EXIT_CODE,
+  "error": "$ERROR_LOG"
+}
+EOF
+
                 # Send macOS notification
                 osascript -e "display notification \"Check deploy.log for details\" with title \"AIgent Deploy Failed\" sound name \"Basso\""
             fi
+
+            # Push build status to repo for remote monitoring
+            echo ""
+            echo "Pushing build status to repo..."
+            git add "$BUILD_STATUS_FILE"
+            git commit -m "Build status: $([ $DEPLOY_EXIT_CODE -eq 0 ] && echo 'SUCCESS' || echo 'FAILED') - $VERSION ($BUILD)"
+            git push origin "$CURRENT_BRANCH" 2>/dev/null || git push origin master 2>/dev/null || git push origin main 2>/dev/null
+            echo "Build status pushed to repo"
         else
             LAST_DEPLOY="PULL FAILED $(date '+%H:%M:%S')"
             echo "$LAST_DEPLOY" > "$LAST_DEPLOY_FILE"

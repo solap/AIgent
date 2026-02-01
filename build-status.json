@@ -1,0 +1,10 @@
+{
+  "status": "pending",
+  "timestamp": "2026-02-01T00:00:00Z",
+  "version": null,
+  "build": null,
+  "branch": null,
+  "commit": null,
+  "commit_message": "Waiting for first build...",
+  "error": null
+}
