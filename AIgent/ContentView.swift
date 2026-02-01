@@ -17,7 +17,7 @@ struct ContentView: View {
     @State private var showingSettings = false
     @State private var showingConversationList = false
     @State private var currentConversation: Conversation?
-    @State private var selectedMultiResponse: [ProviderResponse]?
+    @State private var selectedMultiResponse: ProviderResponseWrapper?
 
     var body: some View {
         NavigationStack {
@@ -39,7 +39,7 @@ struct ContentView: View {
                                         responses: responses
                                     )
                                     .onTapGesture {
-                                        selectedMultiResponse = responses
+                                        selectedMultiResponse = ProviderResponseWrapper(responses: responses)
                                     }
                                     .id(message.id)
                                 } else {
@@ -107,8 +107,8 @@ struct ContentView: View {
                     selectedConversation: $currentConversation
                 )
             }
-            .sheet(item: $selectedMultiResponse) { responses in
-                MultiModelResponseView(responses: responses)
+            .sheet(item: $selectedMultiResponse) { wrapper in
+                MultiModelResponseView(responses: wrapper.responses)
             }
             .onAppear {
                 if currentConversation == nil {
@@ -368,11 +368,10 @@ struct LoadingIndicator: View {
     }
 }
 
-// Extension to make [ProviderResponse] Identifiable for sheet presentation
-extension Array: Identifiable where Element == ProviderResponse {
-    public var id: String {
-        map { $0.id.uuidString }.joined()
-    }
+// Wrapper to make [ProviderResponse] Identifiable for sheet presentation
+struct ProviderResponseWrapper: Identifiable {
+    let id = UUID()
+    let responses: [ProviderResponse]
 }
 
 #Preview {

@@ -80,12 +80,16 @@ struct ConversationMessage: Identifiable, Codable {
 
 // MARK: - Conversation
 
-struct Conversation: Identifiable, Codable {
+struct Conversation: Identifiable, Codable, Equatable {
     let id: UUID
     var title: String
     var messages: [ConversationMessage]
     let createdAt: Date
     var updatedAt: Date
+
+    static func == (lhs: Conversation, rhs: Conversation) -> Bool {
+        lhs.id == rhs.id
+    }
 
     // Derived: Which models were used in this conversation
     var usedProviders: Set<LLMProvider> {

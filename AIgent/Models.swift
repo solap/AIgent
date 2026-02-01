@@ -9,7 +9,7 @@ import Foundation
 
 // MARK: - LLM Provider
 
-enum LLMProvider: String, CaseIterable, Identifiable {
+enum LLMProvider: String, CaseIterable, Identifiable, Codable {
     case anthropic = "Anthropic"
     case openAI = "OpenAI"
     case google = "Google"
