@@ -195,7 +195,7 @@ struct ContentView: View {
                 .foregroundColor(.blue)
                 .cornerRadius(6)
             }
-            .disabled(inputText.isEmpty || chatSession.isLoading)
+            .disabled(!canSend || chatSession.isLoading)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
@@ -235,7 +235,7 @@ struct ContentView: View {
                 // Image picker button
                 PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
                     Image(systemName: "photo")
-                        .font(.system(size: 24))
+                        .font(.system(size: 22))
                         .foregroundStyle(.blue)
                 }
                 .onChange(of: selectedPhotoItem) { _, newItem in
@@ -244,6 +244,15 @@ struct ContentView: View {
                             selectedImageData = data
                         }
                     }
+                }
+
+                // Paste button for clipboard images
+                Button {
+                    pasteImageFromClipboard()
+                } label: {
+                    Image(systemName: "doc.on.clipboard")
+                        .font(.system(size: 20))
+                        .foregroundStyle(.blue)
                 }
 
                 TextField("Message", text: $inputText, axis: .vertical)
@@ -290,12 +299,16 @@ struct ContentView: View {
     }
 
     private func sendToAllModels() {
-        guard !inputText.isEmpty else { return }
+        guard !inputText.isEmpty || selectedImageData != nil else { return }
 
-        let messageText = inputText
+        let messageText = inputText.isEmpty ? "What's in this image?" : inputText
+        let imageData = selectedImageData
+
         inputText = ""
+        selectedImageData = nil
+        selectedPhotoItem = nil
 
-        chatSession.sendMessageToAllModels(messageText)
+        chatSession.sendMessageToAllModels(messageText, imageData: imageData)
 
         // Save to conversation
         saveCurrentConversation()
@@ -358,6 +371,12 @@ struct ContentView: View {
 
         storage.updateConversation(conversation)
         currentConversation = conversation
+    }
+
+    private func pasteImageFromClipboard() {
+        if UIPasteboard.general.hasImages, let image = UIPasteboard.general.image {
+            selectedImageData = image.jpegData(compressionQuality: 0.8)
+        }
     }
 
     private func copyAllMessages() {
