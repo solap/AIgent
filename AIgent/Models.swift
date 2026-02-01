@@ -35,7 +35,7 @@ enum LLMProvider: String, CaseIterable, Identifiable, Codable {
         case .google:
             return ["Gemini 2.0 Flash", "Gemini 1.5 Pro", "Gemini 1.5 Flash"]
         case .grok:
-            return ["grok-2-latest", "grok-beta"]
+            return ["grok-beta", "grok-2-1212", "grok-2-vision-1212"]
         }
     }
 
