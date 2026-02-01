@@ -383,14 +383,14 @@ class APIService {
 
     private func getGrokModelId(_ modelName: String) -> String {
         switch modelName {
-        case "grok-beta":
-            return "grok-beta"
+        case "grok-3":
+            return "grok-3"
+        case "grok-3-fast":
+            return "grok-3-fast"
         case "grok-2-1212":
             return "grok-2-1212"
-        case "grok-2-vision-1212":
-            return "grok-2-vision-1212"
         default:
-            return "grok-beta"
+            return "grok-3"
         }
     }
 }

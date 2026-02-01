@@ -35,7 +35,7 @@ enum LLMProvider: String, CaseIterable, Identifiable, Codable {
         case .google:
             return ["Gemini 2.0 Flash", "Gemini 1.5 Pro", "Gemini 1.5 Flash"]
         case .grok:
-            return ["grok-beta", "grok-2-1212", "grok-2-vision-1212"]
+            return ["grok-3", "grok-3-fast", "grok-2-1212"]
         }
     }
 
@@ -49,7 +49,7 @@ enum LLMProvider: String, CaseIterable, Identifiable, Codable {
         case .google:
             return models.first ?? "gemini-2.0-flash-exp"
         case .grok:
-            return models.first ?? "grok-2-latest"
+            return models.first ?? "grok-3"
         }
     }
 }
