@@ -427,13 +427,13 @@ class APIService {
     private func getGoogleModelId(_ modelName: String) -> String {
         switch modelName {
         case "Gemini 2.0 Flash":
-            return "gemini-2.0-flash-exp"
+            return "gemini-2.0-flash"
         case "Gemini 1.5 Pro":
             return "gemini-1.5-pro"
         case "Gemini 1.5 Flash":
             return "gemini-1.5-flash"
         default:
-            return "gemini-2.0-flash-exp"
+            return "gemini-2.0-flash"
         }
     }
 
