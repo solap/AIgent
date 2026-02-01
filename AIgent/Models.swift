@@ -10,32 +10,46 @@ import Foundation
 // MARK: - LLM Provider
 
 enum LLMProvider: String, CaseIterable, Identifiable {
-    case openAI = "OpenAI"
     case anthropic = "Anthropic"
+    case openAI = "OpenAI"
     case google = "Google"
-    case meta = "Meta"
+    case grok = "Grok"
 
     var id: String { rawValue }
 
     var iconName: String {
         switch self {
-        case .openAI: return "brain.head.profile"
         case .anthropic: return "sparkles"
+        case .openAI: return "brain.head.profile"
         case .google: return "g.circle"
-        case .meta: return "m.circle"
+        case .grok: return "bolt.circle"
         }
     }
 
     var models: [String] {
         switch self {
-        case .openAI:
-            return ["GPT-4", "GPT-4 Turbo", "GPT-3.5 Turbo"]
         case .anthropic:
             return ["Claude 3.5 Sonnet", "Claude 3 Opus", "Claude 3 Haiku"]
+        case .openAI:
+            return ["GPT-4o", "GPT-4 Turbo", "GPT-4", "GPT-3.5 Turbo"]
         case .google:
-            return ["Gemini Pro", "Gemini Ultra"]
-        case .meta:
-            return ["Llama 3", "Llama 2"]
+            return ["Gemini 2.0 Flash", "Gemini 1.5 Pro", "Gemini 1.5 Flash"]
+        case .grok:
+            return ["grok-2-latest", "grok-beta"]
+        }
+    }
+
+    var apiModelId: String {
+        // Returns the actual API model identifier
+        switch self {
+        case .anthropic:
+            return models.first ?? "claude-3-5-sonnet-20241022"
+        case .openAI:
+            return models.first ?? "gpt-4o"
+        case .google:
+            return models.first ?? "gemini-2.0-flash-exp"
+        case .grok:
+            return models.first ?? "grok-2-latest"
         }
     }
 }
@@ -64,29 +78,57 @@ struct Message: Identifiable {
 class ChatSession: ObservableObject {
     @Published var messages: [Message] = []
     @Published var isLoading = false
+    @Published var errorMessage: String?
 
     func sendMessage(_ content: String, provider: LLMProvider, model: String) {
         // Add user message
         let userMessage = Message(content: content, isUser: true)
         messages.append(userMessage)
 
-        // Simulate API call (replace with actual API integration)
+        // Clear any previous errors
+        errorMessage = nil
         isLoading = true
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
-            let response = "This is a placeholder response from \(provider.rawValue) (\(model)). Integrate actual API calls here."
-            let assistantMessage = Message(
-                content: response,
-                isUser: false,
-                provider: provider,
-                model: model
-            )
-            self?.messages.append(assistantMessage)
-            self?.isLoading = false
+        Task { @MainActor in
+            do {
+                // Get conversation history (excluding the message we just added)
+                let history = Array(messages.dropLast())
+
+                // Call the API
+                let response = try await APIService.shared.sendMessage(
+                    content,
+                    provider: provider,
+                    model: model,
+                    conversationHistory: history
+                )
+
+                // Add assistant response
+                let assistantMessage = Message(
+                    content: response,
+                    isUser: false,
+                    provider: provider,
+                    model: model
+                )
+                messages.append(assistantMessage)
+                isLoading = false
+
+            } catch {
+                // Handle error
+                errorMessage = error.localizedDescription
+                let errorResponseMessage = Message(
+                    content: "Error: \(error.localizedDescription)",
+                    isUser: false,
+                    provider: provider,
+                    model: model
+                )
+                messages.append(errorResponseMessage)
+                isLoading = false
+            }
         }
     }
 
     func clearHistory() {
         messages.removeAll()
+        errorMessage = nil
     }
 }

@@ -14,7 +14,7 @@ struct SettingsView: View {
     @State private var openAIKey: String = ""
     @State private var anthropicKey: String = ""
     @State private var googleKey: String = ""
-    @State private var metaKey: String = ""
+    @State private var grokKey: String = ""
 
     var body: some View {
         NavigationStack {
@@ -46,8 +46,8 @@ struct SettingsView: View {
                         .autocorrectionDisabled()
                 }
 
-                Section(header: Label("Meta", systemImage: "m.circle")) {
-                    SecureField("API Key", text: $metaKey)
+                Section(header: Label("Grok", systemImage: "bolt.circle")) {
+                    SecureField("API Key", text: $grokKey)
                         .textContentType(.password)
                         .autocapitalization(.none)
                         .autocorrectionDisabled()
@@ -88,7 +88,7 @@ struct SettingsView: View {
         openAIKey = settingsManager.getAPIKey(for: .openAI) ?? ""
         anthropicKey = settingsManager.getAPIKey(for: .anthropic) ?? ""
         googleKey = settingsManager.getAPIKey(for: .google) ?? ""
-        metaKey = settingsManager.getAPIKey(for: .meta) ?? ""
+        grokKey = settingsManager.getAPIKey(for: .grok) ?? ""
     }
 
     private func saveKeys() {
@@ -101,8 +101,8 @@ struct SettingsView: View {
         if !googleKey.isEmpty {
             settingsManager.setAPIKey(googleKey, for: .google)
         }
-        if !metaKey.isEmpty {
-            settingsManager.setAPIKey(metaKey, for: .meta)
+        if !grokKey.isEmpty {
+            settingsManager.setAPIKey(grokKey, for: .grok)
         }
     }
 }

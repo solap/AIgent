@@ -16,7 +16,7 @@ AIgent is a unified iOS chat interface that allows users to interact with multip
 - Clean, native iOS experience with SwiftUI
 
 ### Current Status
-🚧 **In Development** - UI and settings complete, API integrations are placeholders
+✅ **API Integrations Complete** - Real API calls implemented for Anthropic, OpenAI, Google (Gemini), and Grok
 
 ## Project Details
 
@@ -93,65 +93,62 @@ NavigationStack
 - Clear history button in toolbar
 - Disabled send during loading
 
-### Supported Models
-
-#### OpenAI
-- GPT-4
-- GPT-4 Turbo
-- GPT-3.5 Turbo
+### Supported Providers & Models
 
 #### Anthropic
-- Claude 3.5 Sonnet
-- Claude 3 Opus
-- Claude 3 Haiku
+- Claude 3.5 Sonnet (claude-3-5-sonnet-20241022)
+- Claude 3 Opus (claude-3-opus-20240229)
+- Claude 3 Haiku (claude-3-haiku-20240307)
 
-#### Google
-- Gemini Pro
-- Gemini Ultra
+#### OpenAI
+- GPT-4o (gpt-4o)
+- GPT-4 Turbo (gpt-4-turbo)
+- GPT-4 (gpt-4)
+- GPT-3.5 Turbo (gpt-3.5-turbo)
 
-#### Meta
-- Llama 3
-- Llama 2
+#### Google (Gemini)
+- Gemini 2.0 Flash (gemini-2.0-flash-exp)
+- Gemini 1.5 Pro (gemini-1.5-pro)
+- Gemini 1.5 Flash (gemini-1.5-flash)
 
-## API Integration TODOs
+#### Grok (xAI)
+- grok-2-latest
+- grok-beta
 
-### High Priority
-Each provider needs actual API implementation in `ChatSession.sendMessage()`:
+## API Integration Status
 
-**OpenAI Integration**:
-- [ ] Add OpenAI SDK dependency
-- [ ] Implement API key management
-- [ ] Replace placeholder with real API calls
-- [ ] Handle streaming responses
-- [ ] Error handling for rate limits, invalid keys, etc.
+### ✅ Completed
+All API integrations are fully implemented in `APIService.swift`:
 
 **Anthropic Integration**:
-- [ ] Add Anthropic SDK dependency
-- [ ] Implement API key management
-- [ ] Replace placeholder with real API calls
-- [ ] Handle streaming responses
-- [ ] Error handling
+- ✅ Real API calls to https://api.anthropic.com/v1/messages
+- ✅ Conversation history support
+- ✅ Error handling with descriptive messages
+- ✅ API key management via Keychain
 
-**Google Integration**:
-- [ ] Add Google Generative AI SDK
-- [ ] Implement API key management
-- [ ] Replace placeholder with real API calls
-- [ ] Handle streaming responses
-- [ ] Error handling
+**OpenAI Integration**:
+- ✅ Real API calls to https://api.openai.com/v1/chat/completions
+- ✅ Conversation history support
+- ✅ Error handling
+- ✅ API key management via Keychain
 
-**Meta Integration**:
-- [ ] Determine API access method (likely via Replicate or Together AI)
-- [ ] Add appropriate SDK
-- [ ] Implement API key management
-- [ ] Replace placeholder with real API calls
-- [ ] Error handling
+**Google (Gemini) Integration**:
+- ✅ Real API calls to https://generativelanguage.googleapis.com/v1beta/...
+- ✅ Conversation history support
+- ✅ Error handling
+- ✅ API key management via Keychain
+
+**Grok (xAI) Integration**:
+- ✅ Real API calls to https://api.x.ai/v1/chat/completions
+- ✅ Conversation history support
+- ✅ Error handling
+- ✅ API key management via Keychain
 
 ### API Key Storage
-Need to implement secure storage:
-- [ ] Use Keychain for API key storage
-- [ ] Settings screen for API key entry
-- [ ] Validation of API keys on save
-- [ ] Per-provider enable/disable based on key availability
+- ✅ Keychain-based secure storage in `SettingsManager.swift`
+- ✅ Settings screen for API key entry in `SettingsView.swift`
+- ✅ Per-provider key management
+- ⚠️ Need validation of API keys on save (future enhancement)
 
 ### Enhanced Features
 - [ ] Streaming responses (show tokens as they arrive)
@@ -178,7 +175,7 @@ Need to implement secure storage:
 - ✅ Message bubbles styled correctly
 - ✅ Auto-scroll implemented
 - ✅ Loading indicator working
-- ⚠️ Placeholder responses only
+- ✅ Real API responses from all providers
 
 ## Testing
 
@@ -203,15 +200,34 @@ When testing new builds:
 
 ### Making Changes
 
-**From phone**:
-1. Use Claude Code mobile or Working Copy
-2. Edit Swift files
-3. Commit with descriptive message
-4. Push to GitHub
-5. Watcher auto-deploys to TestFlight (~15 min total)
+**From phone (via Claude Code)**:
+1. Chat with Claude Code to make changes
+2. Claude Code edits Swift files
+3. Changes are automatically saved locally
+4. When ready to deploy, use `/deploy` slash command
+   - This commits changes and pushes to GitHub
+   - Desktop watcher detects the push (~15 seconds)
+   - Watcher automatically builds and uploads to TestFlight (~2-5 minutes)
+   - Apple processes build (10-30 minutes)
+5. Wait for TestFlight notification
 6. Test on phone
 
-**Important**: Always test in Xcode Simulator first if possible, to catch build errors before pushing.
+**From computer**:
+1. Edit Swift files in Xcode or any editor
+2. Commit and push to GitHub
+3. Watcher automatically deploys to TestFlight
+4. Wait for TestFlight notification
+5. Test on phone
+
+**Manual deployment (if watcher isn't running)**:
+1. Run `./deploy-to-testflight.sh` to deploy directly
+2. This bypasses git and deploys current working directory
+3. Wait for TestFlight build
+
+**Important**:
+- The `/deploy` command only pushes to GitHub - the desktop watcher handles the actual build
+- Make sure the watcher is running: `./watch-and-deploy-testflight.sh`
+- Changes are committed automatically with `/deploy`
 
 ### Project Structure
 ```
@@ -273,11 +289,10 @@ AIgent/
 ## Notes
 
 ### Current Limitations
-- No actual API integrations (placeholder responses only)
-- No conversation persistence
-- No streaming responses
-- No error handling for API failures
-- No API key management UI
+- No conversation persistence (messages lost on app close)
+- No streaming responses (full response at once)
+- No API key validation on entry
+- Single conversation at a time (no conversation switching)
 
 ### Design Decisions
 - SwiftUI-only (no UIKit)
@@ -295,7 +310,15 @@ AIgent/
 
 **When working on this project, remember**:
 1. This is a multi-LLM chat app - focus on provider flexibility
-2. UI is complete, focus on API integrations next
-3. Test provider switching thoroughly
-4. Keep placeholder responses until real APIs are implemented
+2. All API integrations are working - test thoroughly before deploying
+3. Use `/deploy` command to push to TestFlight when ready
+4. API keys are stored securely in Keychain
 5. Follow the shared mobile app deployment workflow (see included file above)
+
+## Key Files Added
+
+- `APIService.swift` - Real API integrations for all providers
+- `SettingsManager.swift` - Keychain-based API key storage
+- `SettingsView.swift` - UI for managing API keys
+- `deploy-to-testflight.sh` - Manual deployment script
+- `.claude/commands/deploy.md` - `/deploy` slash command
