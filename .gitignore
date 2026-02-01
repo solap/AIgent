@@ -1,0 +1,26 @@
+# Build artifacts
+*.ipa
+*.app.dSYM.zip
+*.mobileprovision
+
+# Fastlane artifacts
+fastlane/report.xml
+fastlane/README.md
+
+# Deployment logs
+deploy.log
+
+# Xcode
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcworkspace/contents.xcworkspacedata
+DerivedData/
+.DS_Store
+
+# SwiftPM
+.swiftpm/
+
+# Secrets (never commit API keys!)
+.env
+secrets.json
