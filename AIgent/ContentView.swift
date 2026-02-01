@@ -26,7 +26,7 @@ struct ContentView: View {
     @State private var selectedImageData: Data?
 
     // Web search state
-    @State private var searchEnabled = false
+    @State private var searchEnabled = true  // Auto-search enabled by default
     @State private var isSearching = false
 
     var body: some View {
@@ -188,13 +188,13 @@ struct ContentView: View {
 
             Spacer()
 
-            // Search toggle button
+            // Auto-search toggle button
             Button {
                 searchEnabled.toggle()
             } label: {
                 HStack(spacing: 2) {
                     Image(systemName: searchEnabled ? "magnifyingglass.circle.fill" : "magnifyingglass.circle")
-                    Text("Search")
+                    Text(searchEnabled ? "Auto" : "Off")
                 }
                 .font(.caption2)
                 .padding(.horizontal, 8)
@@ -203,7 +203,6 @@ struct ContentView: View {
                 .foregroundColor(searchEnabled ? .green : .gray)
                 .cornerRadius(6)
             }
-            .disabled(!SettingsManager.shared.hasTavilyAPIKey())
 
             // Ask All button
             Button {
@@ -312,7 +311,8 @@ struct ContentView: View {
 
         let messageText = inputText.isEmpty ? "What's in this image?" : inputText
         let imageData = selectedImageData
-        let shouldSearch = searchEnabled && SettingsManager.shared.hasTavilyAPIKey()
+        // Auto-detect if search is needed based on query content
+        let shouldSearch = searchEnabled && WebSearchService.shared.shouldSearch(query: messageText)
 
         inputText = ""
         selectedImageData = nil
@@ -327,9 +327,11 @@ struct ContentView: View {
 
                 do {
                     let results = try await WebSearchService.shared.search(query: messageText)
-                    let searchContext = WebSearchService.shared.formatResultsForContext(results)
-                    enhancedMessage = searchContext + "User question: " + messageText
-                    searchSources = WebSearchService.shared.formatSourcesForDisplay(results)
+                    if !results.isEmpty {
+                        let searchContext = WebSearchService.shared.formatResultsForContext(results)
+                        enhancedMessage = searchContext + "User question: " + messageText
+                        searchSources = WebSearchService.shared.formatSourcesForDisplay(results)
+                    }
                 } catch {
                     // Search failed, proceed without search context
                     print("Search failed: \(error)")
@@ -352,7 +354,8 @@ struct ContentView: View {
 
         let messageText = inputText.isEmpty ? "What's in this image?" : inputText
         let imageData = selectedImageData
-        let shouldSearch = searchEnabled && SettingsManager.shared.hasTavilyAPIKey()
+        // Auto-detect if search is needed based on query content
+        let shouldSearch = searchEnabled && WebSearchService.shared.shouldSearch(query: messageText)
 
         inputText = ""
         selectedImageData = nil
@@ -367,9 +370,11 @@ struct ContentView: View {
 
                 do {
                     let results = try await WebSearchService.shared.search(query: messageText)
-                    let searchContext = WebSearchService.shared.formatResultsForContext(results)
-                    enhancedMessage = searchContext + "User question: " + messageText
-                    searchSources = WebSearchService.shared.formatSourcesForDisplay(results)
+                    if !results.isEmpty {
+                        let searchContext = WebSearchService.shared.formatResultsForContext(results)
+                        enhancedMessage = searchContext + "User question: " + messageText
+                        searchSources = WebSearchService.shared.formatSourcesForDisplay(results)
+                    }
                 } catch {
                     // Search failed, proceed without search context
                     print("Search failed: \(error)")

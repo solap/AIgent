@@ -24,17 +24,167 @@ class WebSearchService {
 
     private init() {}
 
+    // MARK: - Auto-Detection Keywords
+
+    private let searchTriggerKeywords = [
+        // Time-sensitive
+        "latest", "recent", "new", "current", "today", "yesterday",
+        "this week", "this month", "this year", "now", "just",
+        // News/Events
+        "news", "update", "announcement", "release", "launched",
+        "happened", "event", "breaking",
+        // Prices/Data
+        "price", "stock", "weather", "score", "result",
+        "how much", "cost",
+        // Years (current and recent)
+        "2024", "2025", "2026",
+        // Questions about current state
+        "who is the", "what is the current", "is there a",
+        "has anyone", "did they", "when did", "when will"
+    ]
+
+    // MARK: - Auto-Detection
+
+    func shouldSearch(query: String) -> Bool {
+        let lowercased = query.lowercased()
+
+        // Check for trigger keywords
+        for keyword in searchTriggerKeywords {
+            if lowercased.contains(keyword) {
+                return true
+            }
+        }
+
+        // Check for question patterns that often need current info
+        let questionPatterns = [
+            "what happened",
+            "who won",
+            "is .+ still",
+            "how many .+ now",
+            "what's new"
+        ]
+
+        for pattern in questionPatterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
+                let range = NSRange(lowercased.startIndex..., in: lowercased)
+                if regex.firstMatch(in: lowercased, range: range) != nil {
+                    return true
+                }
+            }
+        }
+
+        return false
+    }
+
     // MARK: - Main Search Method
 
     func search(query: String) async throws -> [SearchResult] {
-        guard let apiKey = SettingsManager.shared.getTavilyAPIKey() else {
-            throw SearchError.missingAPIKey
+        // Try DuckDuckGo first (free, no API key)
+        let results = try await searchWithDuckDuckGo(query: query)
+
+        // If DuckDuckGo returns no results and Tavily is configured, try Tavily
+        if results.isEmpty, let tavilyKey = SettingsManager.shared.getTavilyAPIKey() {
+            return try await searchWithTavily(query: query, apiKey: tavilyKey)
         }
 
-        return try await searchWithTavily(query: query, apiKey: apiKey)
+        return results
     }
 
-    // MARK: - Tavily Search API
+    // MARK: - DuckDuckGo Search (Free, No API Key)
+
+    private func searchWithDuckDuckGo(query: String) async throws -> [SearchResult] {
+        // Use DuckDuckGo's HTML search and parse results
+        let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        let urlString = "https://html.duckduckgo.com/html/?q=\(encodedQuery)"
+
+        guard let url = URL(string: urlString) else {
+            throw SearchError.invalidResponse
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15", forHTTPHeaderField: "User-Agent")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            throw SearchError.invalidResponse
+        }
+
+        guard let html = String(data: data, encoding: .utf8) else {
+            throw SearchError.invalidResponse
+        }
+
+        return parseDuckDuckGoHTML(html)
+    }
+
+    private func parseDuckDuckGoHTML(_ html: String) -> [SearchResult] {
+        var results: [SearchResult] = []
+
+        // Parse result blocks - DuckDuckGo HTML has class="result"
+        let resultPattern = #"<a class="result__a"[^>]*href="([^"]*)"[^>]*>([^<]*)</a>.*?<a class="result__snippet"[^>]*>([^<]*)</a>"#
+
+        // Simpler pattern for title and URL
+        let linkPattern = #"<a class="result__a"[^>]*href="([^"]*)"[^>]*>([^<]*)</a>"#
+        let snippetPattern = #"<a class="result__snippet"[^>]*>([^<]*)</a>"#
+
+        // Find all result links
+        if let linkRegex = try? NSRegularExpression(pattern: linkPattern, options: [.dotMatchesLineSeparators]) {
+            let range = NSRange(html.startIndex..., in: html)
+            let matches = linkRegex.matches(in: html, range: range)
+
+            for (index, match) in matches.prefix(5).enumerated() {
+                guard let urlRange = Range(match.range(at: 1), in: html),
+                      let titleRange = Range(match.range(at: 2), in: html) else {
+                    continue
+                }
+
+                var urlString = String(html[urlRange])
+                let title = String(html[titleRange])
+                    .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+
+                // DuckDuckGo uses redirect URLs, extract the actual URL
+                if urlString.contains("uddg="), let decoded = urlString.removingPercentEncoding {
+                    if let uddgRange = decoded.range(of: "uddg=") {
+                        let afterUddg = decoded[uddgRange.upperBound...]
+                        if let ampRange = afterUddg.range(of: "&") {
+                            urlString = String(afterUddg[..<ampRange.lowerBound])
+                        } else {
+                            urlString = String(afterUddg)
+                        }
+                        urlString = urlString.removingPercentEncoding ?? urlString
+                    }
+                }
+
+                // Try to find snippet for this result
+                var snippet = "No description available"
+                if let snippetRegex = try? NSRegularExpression(pattern: snippetPattern, options: []) {
+                    let snippetMatches = snippetRegex.matches(in: html, range: range)
+                    if index < snippetMatches.count {
+                        if let snippetRange = Range(snippetMatches[index].range(at: 1), in: html) {
+                            snippet = String(html[snippetRange])
+                                .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+                                .trimmingCharacters(in: .whitespacesAndNewlines)
+                        }
+                    }
+                }
+
+                guard !title.isEmpty, !urlString.isEmpty else { continue }
+
+                results.append(SearchResult(
+                    title: title,
+                    url: urlString,
+                    content: snippet,
+                    score: nil
+                ))
+            }
+        }
+
+        return results
+    }
+
+    // MARK: - Tavily Search API (Fallback if configured)
 
     private func searchWithTavily(query: String, apiKey: String) async throws -> [SearchResult] {
         let url = URL(string: "https://api.tavily.com/search")!
@@ -119,15 +269,18 @@ enum SearchError: Error, LocalizedError {
     case missingAPIKey
     case invalidResponse
     case httpError(statusCode: Int, message: String)
+    case noResults
 
     var errorDescription: String? {
         switch self {
         case .missingAPIKey:
-            return "Tavily API key not found. Please add your API key in Settings."
+            return "Search API key not found."
         case .invalidResponse:
             return "Invalid response from search API."
         case .httpError(let statusCode, let message):
             return "Search Error (\(statusCode)): \(message)"
+        case .noResults:
+            return "No search results found."
         }
     }
 }

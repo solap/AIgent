@@ -75,15 +75,15 @@ struct SettingsView: View {
                         .font(.caption)
                 }
 
-                Section(header: Label("Web Search (Tavily)", systemImage: "magnifyingglass")) {
-                    SecureField("Tavily API Key", text: $tavilyKey)
+                Section(header: Label("Web Search", systemImage: "magnifyingglass")) {
+                    Text("Auto-search uses DuckDuckGo (free, no API key needed). For better results, optionally add a Tavily key.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    SecureField("Tavily API Key (optional)", text: $tavilyKey)
                         .textContentType(.password)
                         .autocapitalization(.none)
                         .autocorrectionDisabled()
-
-                    Text("Enable web search to give all models access to current information. Get a key at tavily.com")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                 }
 
                 Section {
