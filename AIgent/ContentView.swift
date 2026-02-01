@@ -204,12 +204,23 @@ struct ContentView: View {
     // MARK: - Input Area
 
     private var inputArea: some View {
-        HStack(alignment: .bottom, spacing: 12) {
+        HStack(alignment: .bottom, spacing: 8) {
             TextField("Message", text: $inputText, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1...10)
                 .focused($isInputFocused)
 
+            // Ask All button - always visible
+            Button {
+                sendToAllModels()
+            } label: {
+                Image(systemName: "sparkles.rectangle.stack")
+                    .font(.system(size: 24))
+                    .foregroundStyle(inputText.isEmpty ? .gray : .purple)
+            }
+            .disabled(inputText.isEmpty || chatSession.isLoading)
+
+            // Send button
             Button {
                 sendMessage()
             } label: {
