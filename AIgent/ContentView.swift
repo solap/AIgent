@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 struct ContentView: View {
     @StateObject private var chatSession = ChatSession()
@@ -19,6 +20,10 @@ struct ContentView: View {
     @State private var currentConversation: Conversation?
     @State private var selectedMultiResponse: ProviderResponseWrapper?
     @FocusState private var isInputFocused: Bool
+
+    // Image picker state
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var selectedImageData: Data?
 
     var body: some View {
         NavigationStack {
@@ -203,35 +208,82 @@ struct ContentView: View {
     // MARK: - Input Area
 
     private var inputArea: some View {
-        HStack(alignment: .bottom, spacing: 12) {
-            TextField("Message", text: $inputText, axis: .vertical)
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1...10)
-                .focused($isInputFocused)
+        VStack(spacing: 8) {
+            // Image preview
+            if let imageData = selectedImageData, let uiImage = UIImage(data: imageData) {
+                HStack {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 60)
+                        .cornerRadius(8)
 
-            // Send button
-            Button {
-                sendMessage()
-            } label: {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 32))
-                    .foregroundStyle(inputText.isEmpty ? .gray : .blue)
+                    Button {
+                        selectedImageData = nil
+                        selectedPhotoItem = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.gray)
+                    }
+
+                    Spacer()
+                }
+                .padding(.horizontal)
             }
-            .disabled(inputText.isEmpty || chatSession.isLoading)
+
+            HStack(alignment: .bottom, spacing: 8) {
+                // Image picker button
+                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                    Image(systemName: "photo")
+                        .font(.system(size: 24))
+                        .foregroundStyle(.blue)
+                }
+                .onChange(of: selectedPhotoItem) { _, newItem in
+                    Task {
+                        if let data = try? await newItem?.loadTransferable(type: Data.self) {
+                            selectedImageData = data
+                        }
+                    }
+                }
+
+                TextField("Message", text: $inputText, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(1...10)
+                    .focused($isInputFocused)
+
+                // Send button
+                Button {
+                    sendMessage()
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 32))
+                        .foregroundStyle(canSend ? .blue : .gray)
+                }
+                .disabled(!canSend || chatSession.isLoading)
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
         }
-        .padding()
         .background(Color(uiColor: .systemBackground))
+    }
+
+    private var canSend: Bool {
+        !inputText.isEmpty || selectedImageData != nil
     }
 
     // MARK: - Actions
 
     private func sendMessage() {
-        guard !inputText.isEmpty else { return }
+        guard !inputText.isEmpty || selectedImageData != nil else { return }
 
-        let messageText = inputText
+        let messageText = inputText.isEmpty ? "What's in this image?" : inputText
+        let imageData = selectedImageData
+
         inputText = ""
+        selectedImageData = nil
+        selectedPhotoItem = nil
 
-        chatSession.sendMessage(messageText, provider: selectedProvider, model: selectedModel)
+        chatSession.sendMessage(messageText, provider: selectedProvider, model: selectedModel, imageData: imageData)
 
         // Save to conversation
         saveCurrentConversation()
@@ -331,12 +383,23 @@ struct MessageBubble: View {
             if message.isUser { Spacer() }
 
             VStack(alignment: message.isUser ? .trailing : .leading, spacing: 4) {
-                Text(message.content)
-                    .textSelection(.enabled)
-                    .padding(12)
-                    .background(message.isUser ? Color.blue : Color(uiColor: .systemGray5))
-                    .foregroundColor(message.isUser ? .white : .primary)
-                    .cornerRadius(16)
+                VStack(alignment: message.isUser ? .trailing : .leading, spacing: 8) {
+                    // Show image if present
+                    if let imageData = message.imageData, let uiImage = UIImage(data: imageData) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: 200)
+                            .cornerRadius(12)
+                    }
+
+                    Text(message.content)
+                        .textSelection(.enabled)
+                }
+                .padding(12)
+                .background(message.isUser ? Color.blue : Color(uiColor: .systemGray5))
+                .foregroundColor(message.isUser ? .white : .primary)
+                .cornerRadius(16)
 
                 if !message.isUser, let provider = message.provider, let model = message.model {
                     HStack(spacing: 4) {
