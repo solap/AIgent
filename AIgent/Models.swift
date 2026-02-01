@@ -101,9 +101,17 @@ class ChatSession: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
 
-    func sendMessage(_ content: String, provider: LLMProvider, model: String, imageData: Data? = nil) {
-        // Add user message
-        let userMessage = Message(content: content, isUser: true, imageData: imageData)
+    func sendMessage(_ content: String, provider: LLMProvider, model: String, imageData: Data? = nil, searchSources: String? = nil) {
+        // Extract the user's original question (strip search context if present)
+        let userContent: String
+        if content.contains("User question: ") {
+            userContent = String(content.split(separator: "User question: ").last ?? Substring(content))
+        } else {
+            userContent = content
+        }
+
+        // Add user message (show original question, not search-enhanced version)
+        let userMessage = Message(content: userContent, isUser: true, imageData: imageData)
         messages.append(userMessage)
 
         // Clear any previous errors
@@ -115,7 +123,7 @@ class ChatSession: ObservableObject {
                 // Get conversation history (excluding the message we just added)
                 let history = Array(messages.dropLast())
 
-                // Call the API
+                // Call the API with full content (including search context)
                 let response = try await APIService.shared.sendMessage(
                     content,
                     provider: provider,
@@ -124,9 +132,12 @@ class ChatSession: ObservableObject {
                     imageData: imageData
                 )
 
+                // Append search sources to response if available
+                let finalResponse = searchSources != nil ? response + searchSources! : response
+
                 // Add assistant response
                 let assistantMessage = Message(
-                    content: response,
+                    content: finalResponse,
                     isUser: false,
                     provider: provider,
                     model: model
@@ -154,9 +165,17 @@ class ChatSession: ObservableObject {
         errorMessage = nil
     }
 
-    func sendMessageToAllModels(_ content: String, imageData: Data? = nil) {
-        // Add user message
-        let userMessage = Message(content: content, isUser: true, imageData: imageData)
+    func sendMessageToAllModels(_ content: String, imageData: Data? = nil, searchSources: String? = nil) {
+        // Extract the user's original question (strip search context if present)
+        let userContent: String
+        if content.contains("User question: ") {
+            userContent = String(content.split(separator: "User question: ").last ?? Substring(content))
+        } else {
+            userContent = content
+        }
+
+        // Add user message (show original question, not search-enhanced version)
+        let userMessage = Message(content: userContent, isUser: true, imageData: imageData)
         messages.append(userMessage)
 
         // Clear any previous errors
@@ -167,12 +186,23 @@ class ChatSession: ObservableObject {
             // Get conversation history (excluding the message we just added)
             let history = Array(messages.dropLast())
 
-            // Call the API for all providers
-            let responses = await APIService.shared.sendMessageToAll(
+            // Call the API for all providers with full content (including search context)
+            var responses = await APIService.shared.sendMessageToAll(
                 content,
                 conversationHistory: history,
                 imageData: imageData
             )
+
+            // Append search sources to each response if available
+            if let sources = searchSources {
+                responses = responses.map { response in
+                    ProviderResponse(
+                        provider: response.provider,
+                        model: response.model,
+                        content: response.content + sources
+                    )
+                }
+            }
 
             // Add multi-model response message
             let multiMessage = Message(

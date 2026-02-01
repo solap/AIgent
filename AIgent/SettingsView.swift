@@ -15,6 +15,7 @@ struct SettingsView: View {
     @State private var anthropicKey: String = ""
     @State private var googleKey: String = ""
     @State private var grokKey: String = ""
+    @State private var tavilyKey: String = ""
 
     @State private var openAISystemPrompt: String = ""
     @State private var anthropicSystemPrompt: String = ""
@@ -74,6 +75,17 @@ struct SettingsView: View {
                         .font(.caption)
                 }
 
+                Section(header: Label("Web Search (Tavily)", systemImage: "magnifyingglass")) {
+                    SecureField("Tavily API Key", text: $tavilyKey)
+                        .textContentType(.password)
+                        .autocapitalization(.none)
+                        .autocorrectionDisabled()
+
+                    Text("Enable web search to give all models access to current information. Get a key at tavily.com")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
                 Section {
                     Button("Clear All Keys") {
                         settingsManager.clearAllKeys()
@@ -110,6 +122,7 @@ struct SettingsView: View {
         anthropicKey = settingsManager.getAPIKey(for: .anthropic) ?? ""
         googleKey = settingsManager.getAPIKey(for: .google) ?? ""
         grokKey = settingsManager.getAPIKey(for: .grok) ?? ""
+        tavilyKey = settingsManager.getTavilyAPIKey() ?? ""
 
         openAISystemPrompt = settingsManager.getSystemPrompt(for: .openAI) ?? ""
         anthropicSystemPrompt = settingsManager.getSystemPrompt(for: .anthropic) ?? ""
@@ -130,6 +143,7 @@ struct SettingsView: View {
         if !grokKey.isEmpty {
             settingsManager.setAPIKey(grokKey, for: .grok)
         }
+        settingsManager.setTavilyAPIKey(tavilyKey)
 
         settingsManager.setSystemPrompt(openAISystemPrompt, for: .openAI)
         settingsManager.setSystemPrompt(anthropicSystemPrompt, for: .anthropic)

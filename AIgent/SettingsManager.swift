@@ -89,6 +89,60 @@ class SettingsManager: ObservableObject {
         return getAPIKey(for: provider) != nil
     }
 
+    // MARK: - Tavily API Key Management
+
+    private let tavilyAccount = "tavily-api-key"
+
+    func setTavilyAPIKey(_ key: String) {
+        // Delete existing key first
+        let deleteQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: tavilyAccount
+        ]
+        SecItemDelete(deleteQuery as CFDictionary)
+
+        guard !key.isEmpty else { return }
+
+        // Add new key
+        guard let keyData = key.data(using: .utf8) else { return }
+
+        let addQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: tavilyAccount,
+            kSecValueData as String: keyData,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
+        ]
+
+        SecItemAdd(addQuery as CFDictionary, nil)
+    }
+
+    func getTavilyAPIKey() -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: tavilyAccount,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+
+        guard status == errSecSuccess,
+              let data = result as? Data,
+              let key = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+
+        return key
+    }
+
+    func hasTavilyAPIKey() -> Bool {
+        return getTavilyAPIKey() != nil
+    }
+
     // MARK: - System Prompt Management
 
     private let systemPromptsKey = "systemPrompts"

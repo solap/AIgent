@@ -5,6 +5,20 @@
 
 ---
 
+## CRITICAL: Git Workflow Rule
+
+**NEVER commit or push code changes without the user typing `/deploy`.**
+
+After making code changes:
+1. Tell the user what was changed
+2. Say "Ready to deploy when you type `/deploy`"
+3. STOP - do not run any git commands
+4. Wait for user to type `/deploy`
+
+Only after seeing `/deploy` in the user's message should you commit and push.
+
+---
+
 ## Project Overview
 
 AIgent is a unified iOS chat interface that allows users to interact with multiple Large Language Model providers through a single app.

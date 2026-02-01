@@ -25,6 +25,10 @@ struct ContentView: View {
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var selectedImageData: Data?
 
+    // Web search state
+    @State private var searchEnabled = false
+    @State private var isSearching = false
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -52,6 +56,10 @@ struct ContentView: View {
                                     MessageBubble(message: message)
                                         .id(message.id)
                                 }
+                            }
+
+                            if isSearching {
+                                SearchingIndicator()
                             }
 
                             if chatSession.isLoading {
@@ -180,6 +188,23 @@ struct ContentView: View {
 
             Spacer()
 
+            // Search toggle button
+            Button {
+                searchEnabled.toggle()
+            } label: {
+                HStack(spacing: 2) {
+                    Image(systemName: searchEnabled ? "magnifyingglass.circle.fill" : "magnifyingglass.circle")
+                    Text("Search")
+                }
+                .font(.caption2)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(searchEnabled ? Color.green.opacity(0.2) : Color.gray.opacity(0.1))
+                .foregroundColor(searchEnabled ? .green : .gray)
+                .cornerRadius(6)
+            }
+            .disabled(!SettingsManager.shared.hasTavilyAPIKey())
+
             // Ask All button
             Button {
                 sendToAllModels()
@@ -195,7 +220,7 @@ struct ContentView: View {
                 .foregroundColor(.blue)
                 .cornerRadius(6)
             }
-            .disabled(!canSend || chatSession.isLoading)
+            .disabled(!canSend || chatSession.isLoading || isSearching)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
@@ -268,7 +293,7 @@ struct ContentView: View {
                         .font(.system(size: 32))
                         .foregroundStyle(canSend ? .blue : .gray)
                 }
-                .disabled(!canSend || chatSession.isLoading)
+                .disabled(!canSend || chatSession.isLoading || isSearching)
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
@@ -287,15 +312,39 @@ struct ContentView: View {
 
         let messageText = inputText.isEmpty ? "What's in this image?" : inputText
         let imageData = selectedImageData
+        let shouldSearch = searchEnabled && SettingsManager.shared.hasTavilyAPIKey()
 
         inputText = ""
         selectedImageData = nil
         selectedPhotoItem = nil
 
-        chatSession.sendMessage(messageText, provider: selectedProvider, model: selectedModel, imageData: imageData)
+        if shouldSearch {
+            // Search first, then send with context
+            isSearching = true
+            Task {
+                var enhancedMessage = messageText
+                var searchSources: String? = nil
 
-        // Save to conversation
-        saveCurrentConversation()
+                do {
+                    let results = try await WebSearchService.shared.search(query: messageText)
+                    let searchContext = WebSearchService.shared.formatResultsForContext(results)
+                    enhancedMessage = searchContext + "User question: " + messageText
+                    searchSources = WebSearchService.shared.formatSourcesForDisplay(results)
+                } catch {
+                    // Search failed, proceed without search context
+                    print("Search failed: \(error)")
+                }
+
+                await MainActor.run {
+                    isSearching = false
+                    chatSession.sendMessage(enhancedMessage, provider: selectedProvider, model: selectedModel, imageData: imageData, searchSources: searchSources)
+                    saveCurrentConversation()
+                }
+            }
+        } else {
+            chatSession.sendMessage(messageText, provider: selectedProvider, model: selectedModel, imageData: imageData)
+            saveCurrentConversation()
+        }
     }
 
     private func sendToAllModels() {
@@ -303,15 +352,39 @@ struct ContentView: View {
 
         let messageText = inputText.isEmpty ? "What's in this image?" : inputText
         let imageData = selectedImageData
+        let shouldSearch = searchEnabled && SettingsManager.shared.hasTavilyAPIKey()
 
         inputText = ""
         selectedImageData = nil
         selectedPhotoItem = nil
 
-        chatSession.sendMessageToAllModels(messageText, imageData: imageData)
+        if shouldSearch {
+            // Search first, then send with context
+            isSearching = true
+            Task {
+                var enhancedMessage = messageText
+                var searchSources: String? = nil
 
-        // Save to conversation
-        saveCurrentConversation()
+                do {
+                    let results = try await WebSearchService.shared.search(query: messageText)
+                    let searchContext = WebSearchService.shared.formatResultsForContext(results)
+                    enhancedMessage = searchContext + "User question: " + messageText
+                    searchSources = WebSearchService.shared.formatSourcesForDisplay(results)
+                } catch {
+                    // Search failed, proceed without search context
+                    print("Search failed: \(error)")
+                }
+
+                await MainActor.run {
+                    isSearching = false
+                    chatSession.sendMessageToAllModels(enhancedMessage, imageData: imageData, searchSources: searchSources)
+                    saveCurrentConversation()
+                }
+            }
+        } else {
+            chatSession.sendMessageToAllModels(messageText, imageData: imageData)
+            saveCurrentConversation()
+        }
     }
 
     private func startNewChat() {
@@ -468,6 +541,26 @@ struct MultiModelMessageBubble: View {
                 }
                 .foregroundColor(.secondary)
             }
+
+            Spacer()
+        }
+    }
+}
+
+// MARK: - Searching Indicator
+
+struct SearchingIndicator: View {
+    var body: some View {
+        HStack {
+            HStack(spacing: 8) {
+                ProgressView()
+                Text("Searching the web...")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(12)
+            .background(Color.green.opacity(0.1))
+            .cornerRadius(16)
 
             Spacer()
         }
