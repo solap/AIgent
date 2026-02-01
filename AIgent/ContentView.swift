@@ -139,7 +139,7 @@ struct ContentView: View {
     // MARK: - Model Selector
 
     private var modelSelector: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             // Provider + Model combined picker
             Menu {
                 ForEach(LLMProvider.allCases) { provider in
@@ -161,14 +161,15 @@ struct ContentView: View {
                     }
                 }
             } label: {
-                HStack(spacing: 6) {
+                HStack(spacing: 4) {
                     Image(systemName: selectedProvider.iconName)
+                        .font(.caption)
                     Text(selectedModel)
                         .lineLimit(1)
                     Image(systemName: "chevron.down")
-                        .font(.caption)
+                        .font(.caption2)
                 }
-                .font(.subheadline)
+                .font(.caption)
                 .foregroundColor(.primary)
             }
 
@@ -178,21 +179,21 @@ struct ContentView: View {
             Button {
                 sendToAllModels()
             } label: {
-                HStack(spacing: 4) {
+                HStack(spacing: 2) {
                     Image(systemName: "sparkles.rectangle.stack")
                     Text("Ask All")
                 }
-                .font(.caption)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
+                .font(.caption2)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
                 .background(Color.blue.opacity(0.1))
                 .foregroundColor(.blue)
-                .cornerRadius(8)
+                .cornerRadius(6)
             }
             .disabled(inputText.isEmpty || chatSession.isLoading)
         }
-        .padding(.horizontal)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
         .background(Color(uiColor: .systemGroupedBackground))
         .onChange(of: currentConversation) { _, _ in
             loadConversationMessages()
