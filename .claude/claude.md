@@ -16,7 +16,7 @@ AIgent is a unified iOS chat interface that allows users to interact with multip
 - Clean, native iOS experience with SwiftUI
 
 ### Current Status
-🚧 **In Development** - UI is complete, API integrations are placeholders
+🚧 **In Development** - UI and settings complete, API integrations are placeholders
 
 ## Project Details
 
