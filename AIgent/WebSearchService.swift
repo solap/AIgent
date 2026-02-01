@@ -24,7 +24,7 @@ class WebSearchService {
 
     private init() {}
 
-    // MARK: - Auto-Detection Keywords
+    // MARK: - Auto-Detection Keywords (fallback)
 
     private let searchTriggerKeywords = [
         // Time-sensitive
@@ -43,7 +43,159 @@ class WebSearchService {
         "has anyone", "did they", "when did", "when will"
     ]
 
-    // MARK: - Auto-Detection
+    // MARK: - LLM-Based Search Detection
+
+    /// Uses a fast LLM to determine if the query needs web search
+    func shouldSearchWithLLM(query: String) async -> Bool {
+        // Try to use the fastest available model
+        let classifierPrompt = """
+        You are a search classifier. Determine if this query needs current web information to answer accurately.
+
+        Reply with ONLY "YES" or "NO".
+
+        - YES: Query asks about current events, recent news, live data (prices, weather, scores), or facts that may have changed recently
+        - NO: Query is about general knowledge, coding help, creative writing, math, or timeless facts
+
+        Query: \(query)
+        """
+
+        // Try models in order of speed/cost: Haiku > GPT-3.5 > Gemini Flash > Grok Fast
+        if let response = await tryClassifierWithHaiku(prompt: classifierPrompt) {
+            return response.uppercased().contains("YES")
+        }
+        if let response = await tryClassifierWithGPT35(prompt: classifierPrompt) {
+            return response.uppercased().contains("YES")
+        }
+        if let response = await tryClassifierWithGeminiFlash(prompt: classifierPrompt) {
+            return response.uppercased().contains("YES")
+        }
+        if let response = await tryClassifierWithGrokFast(prompt: classifierPrompt) {
+            return response.uppercased().contains("YES")
+        }
+
+        // Fallback to keyword detection if no LLM available
+        return shouldSearch(query: query)
+    }
+
+    private func tryClassifierWithHaiku(prompt: String) async -> String? {
+        guard let apiKey = SettingsManager.shared.getAPIKey(for: .anthropic) else { return nil }
+
+        let url = URL(string: "https://api.anthropic.com/v1/messages")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        request.setValue("application/json", forHTTPHeaderField: "content-type")
+        request.timeoutInterval = 5
+
+        let body: [String: Any] = [
+            "model": "claude-haiku-4-5-20251001",
+            "max_tokens": 10,
+            "messages": [["role": "user", "content": prompt]]
+        ]
+
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        do {
+            let (data, _) = try await URLSession.shared.data(for: request)
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            if let content = json?["content"] as? [[String: Any]],
+               let text = content.first?["text"] as? String {
+                return text
+            }
+        } catch { }
+        return nil
+    }
+
+    private func tryClassifierWithGPT35(prompt: String) async -> String? {
+        guard let apiKey = SettingsManager.shared.getAPIKey(for: .openAI) else { return nil }
+
+        let url = URL(string: "https://api.openai.com/v1/chat/completions")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "content-type")
+        request.timeoutInterval = 5
+
+        let body: [String: Any] = [
+            "model": "gpt-3.5-turbo",
+            "max_tokens": 10,
+            "messages": [["role": "user", "content": prompt]]
+        ]
+
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        do {
+            let (data, _) = try await URLSession.shared.data(for: request)
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            if let choices = json?["choices"] as? [[String: Any]],
+               let message = choices.first?["message"] as? [String: Any],
+               let content = message["content"] as? String {
+                return content
+            }
+        } catch { }
+        return nil
+    }
+
+    private func tryClassifierWithGeminiFlash(prompt: String) async -> String? {
+        guard let apiKey = SettingsManager.shared.getAPIKey(for: .google) else { return nil }
+
+        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=\(apiKey)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "content-type")
+        request.timeoutInterval = 5
+
+        let body: [String: Any] = [
+            "contents": [["role": "user", "parts": [["text": prompt]]]]
+        ]
+
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        do {
+            let (data, _) = try await URLSession.shared.data(for: request)
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            if let candidates = json?["candidates"] as? [[String: Any]],
+               let content = candidates.first?["content"] as? [String: Any],
+               let parts = content["parts"] as? [[String: Any]],
+               let text = parts.first?["text"] as? String {
+                return text
+            }
+        } catch { }
+        return nil
+    }
+
+    private func tryClassifierWithGrokFast(prompt: String) async -> String? {
+        guard let apiKey = SettingsManager.shared.getAPIKey(for: .grok) else { return nil }
+
+        let url = URL(string: "https://api.x.ai/v1/chat/completions")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "content-type")
+        request.timeoutInterval = 5
+
+        let body: [String: Any] = [
+            "model": "grok-3-fast",
+            "max_tokens": 10,
+            "messages": [["role": "user", "content": prompt]]
+        ]
+
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        do {
+            let (data, _) = try await URLSession.shared.data(for: request)
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            if let choices = json?["choices"] as? [[String: Any]],
+               let message = choices.first?["message"] as? [String: Any],
+               let content = message["content"] as? String {
+                return content
+            }
+        } catch { }
+        return nil
+    }
+
+    // MARK: - Keyword-Based Detection (fallback)
 
     func shouldSearch(query: String) -> Bool {
         let lowercased = query.lowercased()

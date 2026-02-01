@@ -311,30 +311,33 @@ struct ContentView: View {
 
         let messageText = inputText.isEmpty ? "What's in this image?" : inputText
         let imageData = selectedImageData
-        // Auto-detect if search is needed based on query content
-        let shouldSearch = searchEnabled && WebSearchService.shared.shouldSearch(query: messageText)
 
         inputText = ""
         selectedImageData = nil
         selectedPhotoItem = nil
 
-        if shouldSearch {
-            // Search first, then send with context
+        if searchEnabled {
+            // Use LLM to decide if search is needed
             isSearching = true
             Task {
+                // Ask LLM if this query needs search
+                let needsSearch = await WebSearchService.shared.shouldSearchWithLLM(query: messageText)
+
                 var enhancedMessage = messageText
                 var searchSources: String? = nil
 
-                do {
-                    let results = try await WebSearchService.shared.search(query: messageText)
-                    if !results.isEmpty {
-                        let searchContext = WebSearchService.shared.formatResultsForContext(results)
-                        enhancedMessage = searchContext + "User question: " + messageText
-                        searchSources = WebSearchService.shared.formatSourcesForDisplay(results)
+                if needsSearch {
+                    do {
+                        let results = try await WebSearchService.shared.search(query: messageText)
+                        if !results.isEmpty {
+                            let searchContext = WebSearchService.shared.formatResultsForContext(results)
+                            enhancedMessage = searchContext + "User question: " + messageText
+                            searchSources = WebSearchService.shared.formatSourcesForDisplay(results)
+                        }
+                    } catch {
+                        // Search failed, proceed without search context
+                        print("Search failed: \(error)")
                     }
-                } catch {
-                    // Search failed, proceed without search context
-                    print("Search failed: \(error)")
                 }
 
                 await MainActor.run {
@@ -354,30 +357,33 @@ struct ContentView: View {
 
         let messageText = inputText.isEmpty ? "What's in this image?" : inputText
         let imageData = selectedImageData
-        // Auto-detect if search is needed based on query content
-        let shouldSearch = searchEnabled && WebSearchService.shared.shouldSearch(query: messageText)
 
         inputText = ""
         selectedImageData = nil
         selectedPhotoItem = nil
 
-        if shouldSearch {
-            // Search first, then send with context
+        if searchEnabled {
+            // Use LLM to decide if search is needed
             isSearching = true
             Task {
+                // Ask LLM if this query needs search
+                let needsSearch = await WebSearchService.shared.shouldSearchWithLLM(query: messageText)
+
                 var enhancedMessage = messageText
                 var searchSources: String? = nil
 
-                do {
-                    let results = try await WebSearchService.shared.search(query: messageText)
-                    if !results.isEmpty {
-                        let searchContext = WebSearchService.shared.formatResultsForContext(results)
-                        enhancedMessage = searchContext + "User question: " + messageText
-                        searchSources = WebSearchService.shared.formatSourcesForDisplay(results)
+                if needsSearch {
+                    do {
+                        let results = try await WebSearchService.shared.search(query: messageText)
+                        if !results.isEmpty {
+                            let searchContext = WebSearchService.shared.formatResultsForContext(results)
+                            enhancedMessage = searchContext + "User question: " + messageText
+                            searchSources = WebSearchService.shared.formatSourcesForDisplay(results)
+                        }
+                    } catch {
+                        // Search failed, proceed without search context
+                        print("Search failed: \(error)")
                     }
-                } catch {
-                    // Search failed, proceed without search context
-                    print("Search failed: \(error)")
                 }
 
                 await MainActor.run {
@@ -559,7 +565,7 @@ struct SearchingIndicator: View {
         HStack {
             HStack(spacing: 8) {
                 ProgressView()
-                Text("Searching the web...")
+                Text("Checking if search needed...")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
