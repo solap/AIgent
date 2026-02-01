@@ -12,6 +12,7 @@ struct ContentView: View {
     @State private var inputText = ""
     @State private var selectedProvider: LLMProvider = .anthropic
     @State private var selectedModel = "Claude 3.5 Sonnet"
+    @State private var showingSettings = false
 
     var body: some View {
         NavigationStack {
@@ -53,6 +54,14 @@ struct ContentView: View {
             .navigationTitle("AIgent")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Image(systemName: "gear")
+                    }
+                }
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         chatSession.clearHistory()
@@ -60,6 +69,9 @@ struct ContentView: View {
                         Image(systemName: "trash")
                     }
                 }
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
             }
         }
     }
