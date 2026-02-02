@@ -134,20 +134,49 @@ while true; do
                 git checkout master 2>/dev/null || git checkout main 2>/dev/null
                 git merge "$CURRENT_BRANCH" --no-edit -m "Auto-merge $CURRENT_BRANCH to master"
 
-                if [ $? -eq 0 ]; then
+                if [ $? -ne 0 ]; then
+                    # Merge failed - check for common conflicts we can auto-resolve
+                    echo "⚠️  Merge conflict detected - attempting auto-resolution..."
+
+                    # Auto-resolve project.pbxproj conflicts (version bumps from fastlane)
+                    if git diff --name-only --diff-filter=U | grep -q "AIgent.xcodeproj/project.pbxproj"; then
+                        echo "   Resolving AIgent.xcodeproj/project.pbxproj (using incoming changes)..."
+                        git checkout --theirs AIgent.xcodeproj/project.pbxproj
+                        git add AIgent.xcodeproj/project.pbxproj
+                    fi
+
+                    # Auto-resolve Fastfile conflicts
+                    if git diff --name-only --diff-filter=U | grep -q "fastlane/Fastfile"; then
+                        echo "   Resolving fastlane/Fastfile (using incoming changes)..."
+                        git checkout --theirs fastlane/Fastfile
+                        git add fastlane/Fastfile
+                    fi
+
+                    # Check if all conflicts are resolved
+                    REMAINING_CONFLICTS=$(git diff --name-only --diff-filter=U | wc -l | tr -d ' ')
+                    if [ "$REMAINING_CONFLICTS" = "0" ]; then
+                        echo "✓ All conflicts auto-resolved, completing merge..."
+                        git commit --no-edit
+                        echo "Pushing master to remote..."
+                        git push origin master 2>/dev/null || git push origin main 2>/dev/null
+                        echo "✓ Merged and pushed to master"
+                    else
+                        echo "❌ Merge failed - unresolved conflicts remain:"
+                        git diff --name-only --diff-filter=U
+                        git merge --abort
+                        # Check if this is a repeated failure
+                        if [[ "$LAST_DEPLOY" == MERGE\ FAILED* ]] || [[ "$LAST_DEPLOY" == MERGE\ RETRY* ]]; then
+                            LAST_DEPLOY="MERGE FAILED AGAIN $(date '+%H:%M:%S')"
+                        else
+                            LAST_DEPLOY="MERGE FAILED $(date '+%H:%M:%S')"
+                        fi
+                        echo "$LAST_DEPLOY" > "$LAST_DEPLOY_FILE"
+                        continue
+                    fi
+                else
                     echo "Pushing master to remote..."
                     git push origin master 2>/dev/null || git push origin main 2>/dev/null
                     echo "✓ Merged and pushed to master"
-                else
-                    echo "❌ Merge failed - skipping deploy"
-                    # Check if this is a repeated failure
-                    if [[ "$LAST_DEPLOY" == MERGE\ FAILED* ]] || [[ "$LAST_DEPLOY" == MERGE\ RETRY* ]]; then
-                        LAST_DEPLOY="MERGE FAILED AGAIN $(date '+%H:%M:%S')"
-                    else
-                        LAST_DEPLOY="MERGE FAILED $(date '+%H:%M:%S')"
-                    fi
-                    echo "$LAST_DEPLOY" > "$LAST_DEPLOY_FILE"
-                    continue
                 fi
             fi
 
