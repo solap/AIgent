@@ -156,13 +156,27 @@ upload_to_testflight(
 
 **Theory:** TestFlight may not be distributing builds from feature branches even though upload succeeds.
 
+### Attempt 6: Fix watcher script and /deploy command (2026-02-02 00:06)
+**Changes made:**
+1. Auto-detect default branch (main vs master) at startup
+2. Auto-resolve ALL `.claude/` directory conflicts (use incoming/theirs)
+3. Fixed merge logic to use detected default branch instead of hardcoded master
+4. Updated `/deploy` command to only push to GitHub (not run fastlane from phone)
+
+**Status:** 🔄 In progress - watcher restarted with fixes, waiting to test with next code push
+
+**Expected behavior:**
+- Watcher detects push from phone
+- Merges feature branch to main (with auto-conflict resolution)
+- Builds from main branch
+- Build appears in TestFlight (theory: only main branch builds auto-distribute)
+
 ## Next Steps
 
-1. **Fix watcher script** to properly detect and merge to `main` (not `master`)
-2. **Add conflict resolution** for `.claude/` directory files
-3. **Ensure builds are created from main branch** after successful merge
-4. **Verify** build appears after deploying from main branch
-5. **Document** if feature branch builds cannot auto-distribute to TestFlight
+1. ✅ **Watcher script fixed** - auto-detects main, resolves .claude/ conflicts
+2. ✅ **`/deploy` command fixed** - only pushes to GitHub, doesn't run fastlane
+3. ⏳ **Test with next code push** - verify merge to main works and build appears in TestFlight
+4. **Document results** - confirm if main branch builds auto-distribute vs feature branch builds
 
 ## References
 
