@@ -403,3 +403,4 @@ AIgent/
 - `SettingsView.swift` - UI for managing API keys
 - `deploy-to-testflight.sh` - Manual deployment script
 - `.claude/commands/deploy.md` - `/deploy` slash command
+
