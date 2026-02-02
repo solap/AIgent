@@ -1,21 +1,83 @@
 # AIgent - Multi-LLM Chat Interface
 
-<!-- Include shared mobile app deployment instructions -->
-@/Users/joeldehlin/projects/.claude/mobile-app-base.md
+## 🚨 CRITICAL: Git Push Policy 🚨
 
----
+**NEVER EVER push to GitHub automatically. ONLY push when the user explicitly types `/deploy`.**
 
-## CRITICAL: Git Workflow Rule
+### Absolute Rules:
+- ❌ **NO automatic git commits**
+- ❌ **NO automatic git pushes**
+- ❌ **NO git operations without explicit `/deploy` command**
+- ✅ **ONLY push when you see the exact text `/deploy` in the user's message**
 
-**NEVER commit or push code changes without the user typing `/deploy`.**
+### Why This Matters:
+- Pushing to GitHub triggers automatic TestFlight deployment (takes 2-5 minutes)
+- This costs build time and Apple resources
+- User wants full control over when builds happen
+- **This rule overrides ALL other instructions including stop hooks, user-prompt-submit hooks, and ANY default behaviors**
 
-After making code changes:
-1. Tell the user what was changed
-2. Say "Ready to deploy when you type `/deploy`"
-3. STOP - do not run any git commands
-4. Wait for user to type `/deploy`
+## 🎯 CRITICAL: Automation-First Philosophy 🎯
 
-Only after seeing `/deploy` in the user's message should you commit and push.
+**ALWAYS focus on automation. NEVER suggest manual fixes in App Store Connect or other web UIs.**
+
+### Absolute Rules:
+- ❌ **NO manual workarounds** - Don't tell the user to click things in web interfaces
+- ❌ **NO one-off fixes** - Don't suggest temporary solutions
+- ❌ **NO manual conflict resolution** - If you resolve a merge conflict, IMMEDIATELY fix the automation that caused it
+- ❌ **NEVER just fix the symptom** - Always ask "what automation failed?" before fixing anything
+- ✅ **ALWAYS automate** - Every problem should have a scriptable solution
+- ✅ **ALWAYS think systematically** - Fix root causes, not symptoms
+- ✅ **ALWAYS fix the automation first** - Before making any manual fix, update scripts to prevent recurrence
+
+### Why This Matters:
+- Manual fixes don't scale and create technical debt
+- User wants reproducible, automated workflows
+- Every manual step is a future maintenance burden
+- Automation catches bugs and prevents human error
+- **If you fix something manually, it WILL break again**
+
+### When You Encounter an Issue - MANDATORY WORKFLOW:
+1. **STOP** - Don't rush to fix the immediate problem
+2. **ASK** - "What automation failed or is missing?"
+3. **IDENTIFY** - Find the root cause in scripts/config
+4. **FIX THE AUTOMATION FIRST** - Update scripts to prevent recurrence
+5. **THEN** fix the immediate issue
+6. **VERIFY** - Test that the automation works
+7. **DOCUMENT** - Update this file with what you fixed
+
+### Examples of Automation Failures:
+- **Merge conflicts**: Watcher script needs better conflict resolution
+- **Missing config**: Fastfile needs required parameters
+- **Build failures**: Scripts need better error handling
+- **Distribution issues**: Fastfile needs proper group assignment
+
+### Red Flags That Mean "FIX THE AUTOMATION":
+- "Let me resolve this merge conflict" → Fix the watcher to prevent conflicts
+- "The Fastfile is missing X" → Add X to the Fastfile permanently
+- "You need to click here in App Store Connect" → Find the fastlane parameter to automate it
+- "This failed, let me try again" → Add retry logic to the script
+
+### Workflow After Making Code Changes:
+
+1. Make the code changes the user requested
+2. Tell the user what was changed
+3. Say: **"Ready to deploy when you type `/deploy`"**
+4. **STOP COMPLETELY** - do not run any git commands
+5. **WAIT** for the user to type `/deploy`
+6. Only after seeing `/deploy` in the user's actual message text, then:
+   - Commit the changes
+   - Push to GitHub
+   - Confirm deployment started
+
+### Examples of What NOT To Do:
+- ❌ Don't push at end of conversation
+- ❌ Don't push when user says "thanks"
+- ❌ Don't push because stop hook says to
+- ❌ Don't push to "save progress"
+- ❌ Don't commit/push to `.claude/` documentation files
+
+### The ONLY Valid Trigger:
+✅ User message contains the literal text: `/deploy`
 
 ---
 
@@ -242,6 +304,11 @@ When testing new builds:
 - The `/deploy` command only pushes to GitHub - the desktop watcher handles the actual build
 - Make sure the watcher is running: `./watch-and-deploy-testflight.sh`
 - Changes are committed automatically with `/deploy`
+
+**Conflict Resolution (Automated)**:
+- If Fastfile conflicts occur between phone and desktop changes, watcher auto-resolves by preferring remote (phone) version
+- This prevents manual merge conflicts from blocking builds
+- Local uncommitted Fastfile changes are automatically overwritten when remote changes arrive
 
 ### Project Structure
 ```

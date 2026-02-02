@@ -71,10 +71,14 @@ while true; do
     REMOTE=$(git rev-parse "origin/$CURRENT_BRANCH" 2>/dev/null)
 
     if [ "$LOCAL" != "$REMOTE" ]; then
-        # Check if the only changes are to build-status.json (avoid infinite loop)
+        # Check if the only changes are to build-status.json or .claude/ (avoid infinite loop and unnecessary builds)
         CHANGED_FILES=$(git diff --name-only HEAD..origin/$CURRENT_BRANCH 2>/dev/null)
-        if [ "$CHANGED_FILES" = "build-status.json" ]; then
-            # Only build-status.json changed - just pull and skip build
+
+        # Filter out .claude/ and build-status.json
+        CODE_CHANGES=$(echo "$CHANGED_FILES" | grep -v "^\.claude/" | grep -v "^build-status\.json$")
+
+        if [ -z "$CODE_CHANGES" ]; then
+            # Only non-code files changed (build-status.json or .claude/*) - just pull and skip build
             git pull --rebase origin "$CURRENT_BRANCH" --quiet 2>/dev/null
             continue
         fi
@@ -104,9 +108,23 @@ while true; do
         git pull --rebase origin "$CURRENT_BRANCH"
 
         # Reapply stashed changes if any
-        git stash pop --quiet 2>/dev/null || true
+        if git stash pop --quiet 2>/dev/null; then
+            # Check for conflicts in fastlane/Fastfile specifically
+            if git diff --name-only --diff-filter=U | grep -q "fastlane/Fastfile"; then
+                echo "⚠️  Conflict detected in Fastfile - auto-resolving by preferring remote version..."
+                git checkout --theirs fastlane/Fastfile
+                git add fastlane/Fastfile
+                echo "✓ Fastfile conflict resolved (used remote version)"
+            fi
+        fi
 
         if [ $? -eq 0 ]; then
+            # Check if recovering from a merge failure
+            if [[ "$LAST_DEPLOY" == MERGE\ FAILED* ]] || [[ "$LAST_DEPLOY" == MERGE\ RETRY* ]]; then
+                LAST_DEPLOY="MERGE RETRY $(date '+%H:%M:%S')"
+                echo "$LAST_DEPLOY" > "$LAST_DEPLOY_FILE"
+            fi
+
             LAST_COMMIT=$(git log -1 --oneline)
 
             # If not on master, merge to master first
@@ -122,7 +140,12 @@ while true; do
                     echo "✓ Merged and pushed to master"
                 else
                     echo "❌ Merge failed - skipping deploy"
-                    LAST_DEPLOY="MERGE FAILED $(date '+%H:%M:%S')"
+                    # Check if this is a repeated failure
+                    if [[ "$LAST_DEPLOY" == MERGE\ FAILED* ]] || [[ "$LAST_DEPLOY" == MERGE\ RETRY* ]]; then
+                        LAST_DEPLOY="MERGE FAILED AGAIN $(date '+%H:%M:%S')"
+                    else
+                        LAST_DEPLOY="MERGE FAILED $(date '+%H:%M:%S')"
+                    fi
                     echo "$LAST_DEPLOY" > "$LAST_DEPLOY_FILE"
                     continue
                 fi

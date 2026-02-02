@@ -69,9 +69,12 @@ platform :ios do
       api_key: api_key,
       skip_waiting_for_build_processing: false,
       uses_non_exempt_encryption: false,
-      beta_app_description: "AIgent - Multi-LLM chat app for iOS. Chat with Claude, GPT, Gemini, and Grok all in one place.",
-      beta_app_feedback_email: "feedback@aigent.app",
-      distribute_external: false
+      distribute_external: false,
+      notify_external_testers: false,
+      # Automatically distribute to internal testing group only
+      groups: ["Dev Team"],
+      # Skip beta review submission since we're only doing internal testing
+      skip_submission: true
     )
 
     UI.success("Build uploaded to TestFlight! Check your email for processing notification.")
