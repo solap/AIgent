@@ -61,7 +61,8 @@ platform :ios do
         teamID: "55H878TG95",
         provisioningProfiles: {
           "com.doogan.AIgent" => app_profile
-        }
+        },
+        testFlightInternalTestingOnly: true
       }
     )
 
