@@ -26,10 +26,22 @@ if [ -n "$APP_STORE_CONNECT_API_KEY_KEY_ID" ] || grep -q "APP_STORE_CONNECT_API_
     API_KEY_CONFIGURED=true
 fi
 
+# Detect the default branch (main or master)
+DEFAULT_BRANCH=""
+if git show-ref --verify --quiet refs/remotes/origin/main; then
+    DEFAULT_BRANCH="main"
+elif git show-ref --verify --quiet refs/remotes/origin/master; then
+    DEFAULT_BRANCH="master"
+else
+    echo "ERROR: Could not detect default branch (main or master)"
+    exit 1
+fi
+
 echo "========================================"
 echo "   AIgent TestFlight Auto-Deploy"
 echo "========================================"
 echo "   Watching: $PROJECT_DIR"
+echo "   Default branch: $DEFAULT_BRANCH"
 echo "   Mode: All branches (auto-detect)"
 echo "   Check interval: ${CHECK_INTERVAL}s"
 echo "   Started: $(date '+%Y-%m-%d %H:%M:%S')"
@@ -131,12 +143,20 @@ while true; do
 
             LAST_COMMIT=$(git log -1 --oneline)
 
-            # If not on master, merge to master first
-            if [ "$CURRENT_BRANCH" != "master" ] && [ "$CURRENT_BRANCH" != "main" ]; then
+            # If not on default branch, merge to default branch first
+            if [ "$CURRENT_BRANCH" != "$DEFAULT_BRANCH" ]; then
                 echo ""
-                echo "Merging $CURRENT_BRANCH to master..."
-                git checkout master 2>/dev/null || git checkout main 2>/dev/null
-                git merge "$CURRENT_BRANCH" --no-edit -m "Auto-merge $CURRENT_BRANCH to master"
+                echo "Merging $CURRENT_BRANCH to $DEFAULT_BRANCH..."
+                git checkout "$DEFAULT_BRANCH" 2>/dev/null
+
+                if [ $? -ne 0 ]; then
+                    echo "❌ Failed to checkout $DEFAULT_BRANCH"
+                    LAST_DEPLOY="CHECKOUT FAILED $(date '+%H:%M:%S')"
+                    echo "$LAST_DEPLOY" > "$LAST_DEPLOY_FILE"
+                    continue
+                fi
+
+                git merge "$CURRENT_BRANCH" --no-edit -m "Auto-merge $CURRENT_BRANCH to $DEFAULT_BRANCH"
 
                 if [ $? -ne 0 ]; then
                     # Merge failed - check for common conflicts we can auto-resolve
@@ -156,14 +176,26 @@ while true; do
                         git add fastlane/Fastfile
                     fi
 
+                    # Auto-resolve ALL .claude/ directory conflicts (always use incoming/theirs)
+                    CLAUDE_CONFLICTS=$(git diff --name-only --diff-filter=U | grep "^\.claude/")
+                    if [ -n "$CLAUDE_CONFLICTS" ]; then
+                        echo "   Resolving .claude/ directory conflicts (using incoming changes)..."
+                        echo "$CLAUDE_CONFLICTS" | while read -r file; do
+                            echo "     - $file"
+                            git checkout --theirs "$file"
+                            git add "$file"
+                        done
+                        echo "✓ .claude/ conflicts resolved"
+                    fi
+
                     # Check if all conflicts are resolved
                     REMAINING_CONFLICTS=$(git diff --name-only --diff-filter=U | wc -l | tr -d ' ')
                     if [ "$REMAINING_CONFLICTS" = "0" ]; then
                         echo "✓ All conflicts auto-resolved, completing merge..."
                         git commit --no-edit
-                        echo "Pushing master to remote..."
-                        git push origin master 2>/dev/null || git push origin main 2>/dev/null
-                        echo "✓ Merged and pushed to master"
+                        echo "Pushing $DEFAULT_BRANCH to remote..."
+                        git push origin "$DEFAULT_BRANCH"
+                        echo "✓ Merged and pushed to $DEFAULT_BRANCH"
                     else
                         echo "❌ Merge failed - unresolved conflicts remain:"
                         git diff --name-only --diff-filter=U
@@ -178,9 +210,9 @@ while true; do
                         continue
                     fi
                 else
-                    echo "Pushing master to remote..."
-                    git push origin master 2>/dev/null || git push origin main 2>/dev/null
-                    echo "✓ Merged and pushed to master"
+                    echo "Pushing $DEFAULT_BRANCH to remote..."
+                    git push origin "$DEFAULT_BRANCH"
+                    echo "✓ Merged and pushed to $DEFAULT_BRANCH"
                 fi
             fi
 
@@ -300,7 +332,7 @@ EOF
             echo "Pushing build status to repo..."
             git add "$BUILD_STATUS_FILE"
             git commit -m "Build status: $([ $DEPLOY_EXIT_CODE -eq 0 ] && echo 'SUCCESS' || echo 'FAILED') - $VERSION ($BUILD)"
-            # Push to the actual current branch (may be master after merge)
+            # Push to the actual current branch (may be default branch after merge)
             ACTUAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
             git push origin "$ACTUAL_BRANCH" || echo "Warning: Failed to push build status"
             echo "Build status pushed to repo"

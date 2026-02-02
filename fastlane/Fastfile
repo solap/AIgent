@@ -61,8 +61,7 @@ platform :ios do
         teamID: "55H878TG95",
         provisioningProfiles: {
           "com.doogan.AIgent" => app_profile
-        },
-        testFlightInternalTestingOnly: true
+        }
       }
     )
 
@@ -70,7 +69,10 @@ platform :ios do
       api_key: api_key,
       skip_waiting_for_build_processing: false,
       uses_non_exempt_encryption: false,
-      distribute_external: false
+      distribute_external: false,
+      notify_external_testers: false,
+      # Automatically distribute to internal testing group
+      groups: ["Dev Team"]
     )
 
     UI.success("Build uploaded to TestFlight! Check your email for processing notification.")

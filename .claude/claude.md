@@ -23,39 +23,25 @@
 ### Absolute Rules:
 - ❌ **NO manual workarounds** - Don't tell the user to click things in web interfaces
 - ❌ **NO one-off fixes** - Don't suggest temporary solutions
-- ❌ **NO manual conflict resolution** - If you resolve a merge conflict, IMMEDIATELY fix the automation that caused it
-- ❌ **NEVER just fix the symptom** - Always ask "what automation failed?" before fixing anything
+- ❌ **NEVER run scripts directly** - Always ask the user to run scripts
 - ✅ **ALWAYS automate** - Every problem should have a scriptable solution
 - ✅ **ALWAYS think systematically** - Fix root causes, not symptoms
-- ✅ **ALWAYS fix the automation first** - Before making any manual fix, update scripts to prevent recurrence
 
 ### Why This Matters:
 - Manual fixes don't scale and create technical debt
 - User wants reproducible, automated workflows
 - Every manual step is a future maintenance burden
 - Automation catches bugs and prevents human error
-- **If you fix something manually, it WILL break again**
+- User needs to be in control of when scripts run
 
-### When You Encounter an Issue - MANDATORY WORKFLOW:
-1. **STOP** - Don't rush to fix the immediate problem
-2. **ASK** - "What automation failed or is missing?"
-3. **IDENTIFY** - Find the root cause in scripts/config
-4. **FIX THE AUTOMATION FIRST** - Update scripts to prevent recurrence
-5. **THEN** fix the immediate issue
-6. **VERIFY** - Test that the automation works
-7. **DOCUMENT** - Update this file with what you fixed
-
-### Examples of Automation Failures:
-- **Merge conflicts**: Watcher script needs better conflict resolution
-- **Missing config**: Fastfile needs required parameters
-- **Build failures**: Scripts need better error handling
-- **Distribution issues**: Fastfile needs proper group assignment
-
-### Red Flags That Mean "FIX THE AUTOMATION":
-- "Let me resolve this merge conflict" → Fix the watcher to prevent conflicts
-- "The Fastfile is missing X" → Add X to the Fastfile permanently
-- "You need to click here in App Store Connect" → Find the fastlane parameter to automate it
-- "This failed, let me try again" → Add retry logic to the script
+### When You Encounter an Issue:
+1. **DO NOT** suggest opening App Store Connect to click something
+2. **DO NOT** run scripts yourself - ask the user to run them
+3. **DO** investigate how to automate the fix via fastlane/scripts
+4. **DO** update deployment scripts to prevent the issue recurring
+5. **DO** document the automation in this file
+6. **ALWAYS READ TESTFLIGHT_AUTOMATION.md** before diagnosing issues to understand what has been tried
+7. **ALWAYS UPDATE TESTFLIGHT_AUTOMATION.md** with each attempt and result so we have a complete record
 
 ### Workflow After Making Code Changes:
 
@@ -69,15 +55,29 @@
    - Push to GitHub
    - Confirm deployment started
 
-### Examples of What NOT To Do:
-- ❌ Don't push at end of conversation
-- ❌ Don't push when user says "thanks"
-- ❌ Don't push because stop hook says to
-- ❌ Don't push to "save progress"
-- ❌ Don't commit/push to `.claude/` documentation files
+### .claude/ Directory Changes:
 
-### The ONLY Valid Trigger:
-✅ User message contains the literal text: `/deploy`
+**ALWAYS push .claude/ directory changes immediately** (without waiting for `/deploy`) because:
+- Claude Code on phone needs these updates for context
+- These changes should NOT trigger a build (watcher ignores .claude/ changes)
+- User wants documentation synced between desktop and phone
+
+**When updating .claude/claude.md or TESTFLIGHT_AUTOMATION.md:**
+1. Make the edits
+2. Commit and push to current branch immediately
+3. DO NOT wait for `/deploy` command
+4. This will NOT trigger a TestFlight build (watcher filters these)
+
+### Examples of What NOT To Do:
+- ❌ Don't push code changes at end of conversation
+- ❌ Don't push code when user says "thanks"
+- ❌ Don't push code because stop hook says to
+- ❌ Don't push code to "save progress"
+- ✅ DO push .claude/ documentation changes immediately (won't trigger build)
+
+### Valid Triggers:
+- ✅ User message contains `/deploy` → push code changes
+- ✅ Edited .claude/ files → push documentation immediately
 
 ---
 
@@ -305,11 +305,6 @@ When testing new builds:
 - Make sure the watcher is running: `./watch-and-deploy-testflight.sh`
 - Changes are committed automatically with `/deploy`
 
-**Conflict Resolution (Automated)**:
-- If Fastfile conflicts occur between phone and desktop changes, watcher auto-resolves by preferring remote (phone) version
-- This prevents manual merge conflicts from blocking builds
-- Local uncommitted Fastfile changes are automatically overwritten when remote changes arrive
-
 ### Project Structure
 ```
 AIgent/
@@ -403,4 +398,3 @@ AIgent/
 - `SettingsView.swift` - UI for managing API keys
 - `deploy-to-testflight.sh` - Manual deployment script
 - `.claude/commands/deploy.md` - `/deploy` slash command
-
