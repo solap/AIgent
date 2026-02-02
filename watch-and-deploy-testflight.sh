@@ -46,13 +46,17 @@ echo ""
 while true; do
     CHECK_COUNT=$((CHECK_COUNT + 1))
 
-    # Show countdown
+    # Show countdown (use tput for better terminal compatibility)
     for i in $(seq $CHECK_INTERVAL -1 1); do
-        printf "\r   Next check in %2ds | Last deploy: %s | Checks: %d   " "$i" "$LAST_DEPLOY" "$CHECK_COUNT"
+        tput cr 2>/dev/null || echo -n $'\r'
+        tput el 2>/dev/null || true
+        echo -n "   Next check in ${i}s | Last deploy: $LAST_DEPLOY | Checks: $CHECK_COUNT"
         sleep 1
     done
 
-    printf "\r   Checking for changes...                                              "
+    tput cr 2>/dev/null || echo -n $'\r'
+    tput el 2>/dev/null || true
+    echo -n "   Checking for changes..."
 
     # Fetch all branches from remote
     git fetch --all 2>/dev/null

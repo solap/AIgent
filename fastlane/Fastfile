@@ -69,9 +69,7 @@ platform :ios do
       api_key: api_key,
       skip_waiting_for_build_processing: false,
       uses_non_exempt_encryption: false,
-      # Distribute to internal testers only (no external beta review)
-      distribute_external: false,
-      groups: ["Dev Team"]
+      distribute_external: false
     )
 
     UI.success("Build uploaded to TestFlight! Check your email for processing notification.")
