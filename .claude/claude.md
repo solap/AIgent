@@ -50,10 +50,12 @@
 3. Say: **"Ready to deploy when you type `/deploy`"**
 4. **STOP COMPLETELY** - do not run any git commands
 5. **WAIT** for the user to type `/deploy`
-6. Only after seeing `/deploy` in the user's actual message text, then:
-   - Commit the changes
-   - Push to GitHub
-   - Confirm deployment started
+6. Only after seeing `/deploy` in the user's actual message text:
+   - Commit the changes with a descriptive message
+   - Push to GitHub (current branch)
+   - Tell user: "✅ Pushed to GitHub. Watcher will build in ~15 seconds."
+   - **DO NOT** run fastlane, scripts, or any build commands
+   - The desktop watcher handles all builds automatically
 
 ### .claude/ Directory Changes:
 
