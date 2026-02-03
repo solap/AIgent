@@ -101,14 +101,12 @@ while true; do
         # Pull changes
         echo "Pulling changes..."
 
-        # Stash any local changes to avoid conflicts
-        git stash --quiet 2>/dev/null
+        # Discard all local changes - watcher directory should always match remote
+        git reset --hard HEAD 2>/dev/null
+        git clean -fd 2>/dev/null
 
         git checkout "$CURRENT_BRANCH" 2>/dev/null || git checkout -b "$CURRENT_BRANCH" origin/"$CURRENT_BRANCH" 2>/dev/null
         git pull --rebase origin "$CURRENT_BRANCH"
-
-        # Reapply stashed changes if any
-        git stash pop --quiet 2>/dev/null || true
 
         if [ $? -eq 0 ]; then
             LAST_COMMIT=$(git log -1 --oneline)
