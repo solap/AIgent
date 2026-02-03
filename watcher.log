@@ -1,0 +1,15 @@
+========================================
+   AIgent TestFlight Auto-Deploy
+========================================
+   Watching: /Users/joeldehlin/projects/AIgent/AIgent
+   Mode: All branches (auto-detect)
+   Check interval: 15s
+   Started: 2026-02-01 23:32:05
+   Mode: Full automation (API key found)
+   Press Ctrl+C to stop
+========================================
+
+   Next check in 15s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 1      Next check in 14s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 1      Next check in 13s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 1      Next check in 12s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 1      Next check in 11s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 1      Next check in 10s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 1      Next check in  9s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 1      Next check in  8s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 1      Next check in  7s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 1      Next check in  6s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 1      Next check in  5s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 1      Next check in  4s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 1      Next check in  3s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 1      Next check in  2s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 1      Next check in  1s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 1      Checking for changes...                                              
+
+   Switched to tracking branch: claude/fix-model-selection-chat-lw7Hv
+   Next check in 15s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 2      Next check in 14s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 2      Next check in 13s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 2      Next check in 12s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 2      Next check in 11s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 2      Next check in 10s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 2      Next check in  9s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 2      Next check in  8s | Last deploy: MERGE FAILED AGAIN 23:28:41 | Checks: 2   
