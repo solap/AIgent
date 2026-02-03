@@ -46,10 +46,9 @@ platform :ios do
     updated_content = content.gsub(/MARKETING_VERSION = #{Regexp.escape(current_version)};/, "MARKETING_VERSION = #{new_version};")
     File.write(project_file, updated_content)
 
-    # Commit version bump so it persists
+    # Commit version bump locally (don't push to avoid infinite loop)
     sh("git add #{project_file}")
     sh("git commit -m 'Bump version to #{new_version}' || true")
-    sh("git push origin HEAD || true")
 
     # Build with the downloaded profiles
     build_app(
@@ -69,10 +68,9 @@ platform :ios do
     upload_to_testflight(
       api_key: api_key,
       skip_waiting_for_build_processing: false,
-      uses_non_exempt_encryption: false,
-      distribute_external: false,
-      notify_external_testers: false,
-      groups: ["Dev Team"]
+      uses_non_exempt_encryption: false
+      # Note: Cannot auto-assign to internal groups via API
+      # Build will upload successfully but requires manual assignment in App Store Connect
     )
 
     UI.success("Build uploaded to TestFlight! Check your email for processing notification.")
