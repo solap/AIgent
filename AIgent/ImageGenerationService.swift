@@ -188,7 +188,7 @@ class ImageGenerationService {
     // MARK: - Google Imagen 3
 
     private func generateWithImagen(prompt: String, apiKey: String) async throws -> Data {
-        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=\(apiKey)")!
+        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:generateImages?key=\(apiKey)")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "content-type")
