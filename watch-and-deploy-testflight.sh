@@ -26,10 +26,22 @@ if [ -n "$APP_STORE_CONNECT_API_KEY_KEY_ID" ] || grep -q "APP_STORE_CONNECT_API_
     API_KEY_CONFIGURED=true
 fi
 
+# Detect the default branch (main or master)
+DEFAULT_BRANCH=""
+if git show-ref --verify --quiet refs/remotes/origin/main; then
+    DEFAULT_BRANCH="main"
+elif git show-ref --verify --quiet refs/remotes/origin/master; then
+    DEFAULT_BRANCH="master"
+else
+    echo "ERROR: Could not detect default branch (main or master)"
+    exit 1
+fi
+
 echo "========================================"
 echo "   AIgent TestFlight Auto-Deploy"
 echo "========================================"
 echo "   Watching: $PROJECT_DIR"
+echo "   Default branch: $DEFAULT_BRANCH"
 echo "   Mode: All branches (auto-detect)"
 echo "   Check interval: ${CHECK_INTERVAL}s"
 echo "   Started: $(date '+%Y-%m-%d %H:%M:%S')"
@@ -101,21 +113,31 @@ while true; do
         if [ $? -eq 0 ]; then
             LAST_COMMIT=$(git log -1 --oneline)
 
-            # If not on master, merge to master first
-            if [ "$CURRENT_BRANCH" != "master" ] && [ "$CURRENT_BRANCH" != "main" ]; then
+            # If not on default branch, merge to default branch first
+            if [ "$CURRENT_BRANCH" != "$DEFAULT_BRANCH" ]; then
                 echo ""
-                echo "Merging $CURRENT_BRANCH to master..."
-                git checkout master 2>/dev/null || git checkout main 2>/dev/null
-                git merge "$CURRENT_BRANCH" --no-edit -m "Auto-merge $CURRENT_BRANCH to master"
+                echo "Merging $CURRENT_BRANCH to $DEFAULT_BRANCH..."
+                git checkout "$DEFAULT_BRANCH"
+
+                if [ $? -ne 0 ]; then
+                    echo "❌ Failed to checkout $DEFAULT_BRANCH"
+                    LAST_DEPLOY="CHECKOUT FAILED $(date '+%H:%M:%S')"
+                    echo "$LAST_DEPLOY" > "$LAST_DEPLOY_FILE"
+                    continue
+                fi
+
+                # Merge with -X theirs strategy: feature branch wins all conflicts
+                git merge "$CURRENT_BRANCH" -X theirs --no-edit -m "Auto-merge $CURRENT_BRANCH to $DEFAULT_BRANCH"
 
                 if [ $? -eq 0 ]; then
-                    echo "Pushing master to remote..."
-                    git push origin master 2>/dev/null || git push origin main 2>/dev/null
-                    echo "✓ Merged and pushed to master"
+                    echo "Pushing $DEFAULT_BRANCH to remote..."
+                    git push origin "$DEFAULT_BRANCH"
+                    echo "✓ Merged and pushed to $DEFAULT_BRANCH"
                 else
-                    echo "❌ Merge failed - skipping deploy"
+                    echo "❌ Merge failed even with auto-conflict resolution"
                     LAST_DEPLOY="MERGE FAILED $(date '+%H:%M:%S')"
                     echo "$LAST_DEPLOY" > "$LAST_DEPLOY_FILE"
+                    git merge --abort
                     continue
                 fi
             fi
