@@ -16,6 +16,14 @@ else
     LAST_DEPLOY="Never"
 fi
 
+# Track last successfully built commit
+LAST_BUILT_COMMIT_FILE="$PROJECT_DIR/.last_built_commit"
+if [ -f "$LAST_BUILT_COMMIT_FILE" ]; then
+    LAST_BUILT_COMMIT=$(cat "$LAST_BUILT_COMMIT_FILE")
+else
+    LAST_BUILT_COMMIT=""
+fi
+
 LAST_COMMIT=""
 CHECK_COUNT=0
 CURRENT_BRANCH=""
@@ -78,24 +86,28 @@ while true; do
         printf "\n\n   Switched to tracking branch: $CURRENT_BRANCH\n"
     fi
 
-    # Check if there are new commits on the current branch
-    LOCAL=$(git rev-parse HEAD 2>/dev/null)
-    REMOTE=$(git rev-parse "origin/$CURRENT_BRANCH" 2>/dev/null)
+    # Check if there are new commits to build
+    # Compare remote HEAD to last successfully built commit
+    REMOTE_HEAD=$(git rev-parse "origin/$CURRENT_BRANCH" 2>/dev/null)
 
-    if [ "$LOCAL" != "$REMOTE" ]; then
+    if [ "$REMOTE_HEAD" != "$LAST_BUILT_COMMIT" ]; then
         printf "\n"  # Only newline when we have changes
         echo ""
         echo "========================================"
         echo "$(date '+%Y-%m-%d %H:%M:%S') NEW CHANGES DETECTED!"
         echo "========================================"
-        echo "   Local:  ${LOCAL:0:8}"
-        echo "   Remote: ${REMOTE:0:8}"
+        echo "   Last built: ${LAST_BUILT_COMMIT:0:8}"
+        echo "   New commit: ${REMOTE_HEAD:0:8}"
 
         # Show what changed
         echo ""
         echo "Branch: $CURRENT_BRANCH"
         echo "New commits:"
-        git log --oneline HEAD..origin/$CURRENT_BRANCH 2>/dev/null | head -5
+        if [ -n "$LAST_BUILT_COMMIT" ]; then
+            git log --oneline $LAST_BUILT_COMMIT..origin/$CURRENT_BRANCH 2>/dev/null | head -5
+        else
+            git log --oneline origin/$CURRENT_BRANCH 2>/dev/null | head -5
+        fi
         echo ""
 
         # Pull changes
@@ -188,6 +200,10 @@ while true; do
 
                 LAST_DEPLOY=$(date '+%Y-%m-%d %H:%M:%S')
                 echo "$LAST_DEPLOY" > "$LAST_DEPLOY_FILE"
+
+                # Update last built commit to prevent rebuilding same commit
+                echo "$REMOTE_HEAD" > "$LAST_BUILT_COMMIT_FILE"
+                LAST_BUILT_COMMIT="$REMOTE_HEAD"
 
                 echo ""
                 echo "========================================"
