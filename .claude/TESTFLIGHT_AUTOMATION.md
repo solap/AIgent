@@ -67,18 +67,20 @@ upload_to_testflight(
 
 ## Current Status (2026-02-02)
 
-### ✅ What's Working
+### ✅ WORKING - Full End-to-End Automation Achieved!
+
 1. **Watcher detection**: Uses `.last_built_commit` file to track what was last built
 2. **Build automation**: Builds trigger automatically when pushing to GitHub
 3. **Upload**: Builds upload successfully to App Store Connect
 4. **No infinite loops**: Version bumps commit locally only, don't trigger new builds
+5. **Auto-distribution**: Builds automatically appear in TestFlight on phone (1-5 minutes)
+6. **Build 1.15 confirmed working on device**
 
-### ❌ What's NOT Working
-1. **Auto-distribution to internal groups**: Apple's API doesn't support this
-2. **Builds appear on phone**: They upload to App Store Connect but don't auto-assign to testing group
+### ✅ Mystery Solved!
 
-### 🤔 The Mystery
-**Builds 1.9-1.12 appeared automatically on phone with this Fastfile**:
+**The problem was NOT the Fastfile config. The problem was the `groups` parameter.**
+
+**Working Fastfile** (builds 1.9-1.12, 1.15):
 ```ruby
 upload_to_testflight(
   api_key: api_key,
@@ -87,14 +89,21 @@ upload_to_testflight(
 )
 ```
 
-**Current builds (1.14-1.15) do NOT appear with same config.**
+**Broken Fastfile** (build 1.14):
+```ruby
+upload_to_testflight(
+  api_key: api_key,
+  skip_waiting_for_build_processing: false,
+  uses_non_exempt_encryption: false,
+  groups: ["Dev Team"]  # ← This breaks auto-distribution
+)
+```
 
-**Possible explanations**:
-1. User was manually clicking in App Store Connect (but user says no)
-2. Apple changed their API behavior
-3. Some App Store Connect setting was different then
-4. First build in a series auto-distributes, subsequent ones don't
-5. There's a time delay we haven't waited for
+**The solution**:
+- Apple automatically distributes builds to internal testers
+- Don't specify `groups`, `distribute_external`, or `notify_external_testers`
+- Just upload with basic config and Apple handles the rest
+- Builds appear on device 1-5 minutes after processing completes
 
 ---
 
@@ -165,20 +174,47 @@ upload_to_testflight(
 
 ---
 
-## Outstanding Questions
+## Final Solution Summary
 
-1. **Why did builds 1.9-1.12 auto-appear on phone?**
-   - Same Fastfile config as now
-   - No manual clicking
-   - What was different?
+### The Working Configuration
 
-2. **Is there an App Store Connect setting we're missing?**
-   - Auto-distribute to internal testers?
-   - Default testing group?
+**Fastfile** (`fastlane/Fastfile`):
+```ruby
+upload_to_testflight(
+  api_key: api_key,
+  skip_waiting_for_build_processing: false,
+  uses_non_exempt_encryption: false
+)
+# DO NOT add: groups, distribute_external, notify_external_testers
+```
 
-3. **Does first build in app auto-distribute, but subsequent ones don't?**
-   - Would explain why it worked initially then stopped
+**Watcher** (`watch-and-deploy-testflight.sh`):
+- Tracks last built commit in `.last_built_commit` file
+- Auto-detects default branch (main vs master)
+- Discards local changes before pulling
+- No git push during version bump
 
-4. **Is there a time delay before builds appear?**
-   - Have we been checking too soon?
-   - Does it take hours, not minutes?
+**Workflow**:
+1. Make code changes
+2. Type `/deploy` (commits and pushes to GitHub)
+3. Watcher detects new commit (~15 seconds)
+4. Watcher builds and uploads to TestFlight (~2-5 minutes)
+5. Apple processes build (~1-5 minutes)
+6. Build automatically appears in TestFlight app on phone
+7. Total time: ~5-10 minutes from `/deploy` to device
+
+### Critical Don'ts
+
+❌ Don't add `groups: ["Dev Team"]` - breaks auto-distribution
+❌ Don't add `distribute_external` or `notify_external_testers` - not needed
+❌ Don't push from Fastfile during build - causes infinite loop
+❌ Don't compare `git rev-parse HEAD` to remote - won't detect changes from same directory
+❌ Don't use `-X theirs` merge strategy - creates conflict markers
+
+### Critical Do's
+
+✅ Use `.last_built_commit` file to track builds
+✅ Let Apple auto-distribute to internal testers
+✅ Commit version bumps locally only (no push)
+✅ Use `git reset --hard` before pulling in watcher
+✅ Auto-detect default branch name
