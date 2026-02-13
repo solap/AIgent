@@ -29,13 +29,13 @@ enum LLMProvider: String, CaseIterable, Identifiable, Codable {
     var models: [String] {
         switch self {
         case .anthropic:
-            return ["Claude Sonnet 4.5", "Claude Opus 4.5", "Claude Haiku 4.5"]
+            return ["Claude Opus 4.6", "Claude Sonnet 4.5", "Claude Opus 4.1"]
         case .openAI:
-            return ["GPT-4o", "GPT-4 Turbo", "GPT-4", "GPT-3.5 Turbo"]
+            return ["GPT-4.1", "GPT-4.1 Mini", "GPT-4o", "GPT-4o Mini"]
         case .google:
-            return ["Gemini 2.0 Flash", "Gemini 1.5 Pro", "Gemini 1.5 Flash"]
+            return ["Gemini 2.5 Flash", "Gemini 2.5 Pro", "Gemini 3 Flash"]
         case .grok:
-            return ["grok-3", "grok-3-fast"]
+            return ["Grok 4.1 Fast", "Grok 4", "Grok 3"]
         }
     }
 
@@ -43,13 +43,13 @@ enum LLMProvider: String, CaseIterable, Identifiable, Codable {
         // Returns the actual API model identifier
         switch self {
         case .anthropic:
-            return models.first ?? "claude-3-5-sonnet-20250122"
+            return models.first ?? "claude-opus-4-6"
         case .openAI:
-            return models.first ?? "gpt-4o"
+            return models.first ?? "gpt-4.1"
         case .google:
-            return models.first ?? "gemini-2.0-flash-exp"
+            return models.first ?? "gemini-2.5-flash"
         case .grok:
-            return models.first ?? "grok-3"
+            return models.first ?? "grok-4-1-fast"
         }
     }
 }
