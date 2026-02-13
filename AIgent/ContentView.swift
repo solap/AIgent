@@ -15,7 +15,7 @@ struct ContentView: View {
 
     @State private var inputText = ""
     @State private var selectedProvider: LLMProvider = .anthropic
-    @State private var selectedModel = "Claude Sonnet 4.5"
+    @State private var selectedModel = "Claude Opus 4.6"
     @State private var showingSettings = false
     @State private var showingConversationList = false
     @State private var currentConversation: Conversation?

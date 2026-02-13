@@ -466,55 +466,55 @@ class APIService {
 
     private func getAnthropicModelId(_ modelName: String) -> String {
         switch modelName {
+        case "Claude Opus 4.6":
+            return "claude-opus-4-6-20260205"
         case "Claude Sonnet 4.5":
             return "claude-sonnet-4-5-20250929"
-        case "Claude Opus 4.5":
-            return "claude-opus-4-5-20251101"
-        case "Claude Haiku 4.5":
-            return "claude-haiku-4-5-20251001"
+        case "Claude Opus 4.1":
+            return "claude-opus-4-1-20250805"
         default:
-            return "claude-sonnet-4-5-20250929"
+            return "claude-opus-4-6-20260205"
         }
     }
 
     private func getOpenAIModelId(_ modelName: String) -> String {
         switch modelName {
+        case "GPT-4.1":
+            return "gpt-4.1"
+        case "GPT-4.1 Mini":
+            return "gpt-4.1-mini"
         case "GPT-4o":
             return "gpt-4o"
-        case "GPT-4 Turbo":
-            return "gpt-4-turbo"
-        case "GPT-4":
-            return "gpt-4"
-        case "GPT-3.5 Turbo":
-            return "gpt-3.5-turbo"
+        case "GPT-4o Mini":
+            return "gpt-4o-mini"
         default:
-            return "gpt-4o"
+            return "gpt-4.1"
         }
     }
 
     private func getGoogleModelId(_ modelName: String) -> String {
         switch modelName {
-        case "Gemini 2.0 Flash":
-            return "gemini-2.0-flash"
-        case "Gemini 1.5 Pro":
-            return "gemini-1.5-pro"
-        case "Gemini 1.5 Flash":
-            return "gemini-1.5-flash"
+        case "Gemini 2.5 Flash":
+            return "gemini-2.5-flash"
+        case "Gemini 2.5 Pro":
+            return "gemini-2.5-pro"
+        case "Gemini 3 Flash":
+            return "gemini-3-flash-preview"
         default:
-            return "gemini-2.0-flash"
+            return "gemini-2.5-flash"
         }
     }
 
     private func getGrokModelId(_ modelName: String) -> String {
         switch modelName {
-        case "grok-3":
-            return "grok-3"
-        case "grok-3-fast":
-            return "grok-3-fast"
-        case "grok-2-1212":
-            return "grok-2-1212"
+        case "Grok 4.1 Fast":
+            return "grok-4-1-fast"
+        case "Grok 4":
+            return "grok-4-0709"
+        case "Grok 3":
+            return "grok-3-beta"
         default:
-            return "grok-3"
+            return "grok-4-1-fast"
         }
     }
 }
